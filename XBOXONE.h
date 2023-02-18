@@ -68,10 +68,10 @@
 class XBOXONE : public USBDeviceConfig, public UsbConfigXtracter {
 public:
     /**
-     * Constructor for the XBOXONE class.
+     * Constructor for the XBONEAUTH class.
      * @param  pUsb   Pointer to USB class instance.
      */
-    XBOXONE(USB *pUsb);
+    XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata));
 
     /** @name USBDeviceConfig implementation */
     /**
@@ -185,6 +185,8 @@ public:
     uint8_t XboxCommand(uint8_t *data, uint16_t nbytes);
 
 protected:
+    void (*dataCallback)(const uint8_t *data, const uint8_t &ndata);
+
     /** Pointer to USB class instance. */
     USB *pUsb;
     /** Device address. */

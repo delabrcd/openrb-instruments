@@ -18,12 +18,20 @@ F_CPU        = 16000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = adapter_common
-SRCS 		:= 	$(wildcard *.c)
-CPP_SRCS 	:= 	$(wildcard *.cpp)
-SRC          = $(TARGET).cpp Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(SRCS) $(CPP_SRCS)
+
+INCLUDE_DIRS := -I./ \
+				-IConfig \
+				-Imidi \
+
+SRCS 		:= 	$(wildcard *.c) 
+
+CPP_SRCS 	:= 	$(wildcard *.cpp) \
+				$(wildcard midi/*.cpp)	
+			
+SRC          = $(TARGET).cpp $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(SRCS) $(CPP_SRCS)
 LUFA_PATH    = LUFA
-CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/ -I./ -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
-CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER -IConfig/ -I./ -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
+CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
+CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -I./ -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
 LD_FLAGS     =
 
 # Default target
