@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <LUFA/Drivers/USB/USB.h>
+// #include <LUFA/Drivers/USB/Class/CDCClass.h>
 
 #include "Arduino.h"
 #include "HardwareSerial.h"
@@ -19,8 +20,8 @@
 
 #define MAX_CONTROL_TRANSFER_SIZE 64
 #define VELOCITY_THRESH 10
-#define USART_BAUDRATE 115200LL
-#define USART_DOUBLE_SPEED false
+// #define USART_BAUDRATE 115200LL
+// #define USART_DOUBLE_SPEED false
 
 #define OUT_DESCRIPTION "OUT: "
 #define IN_DESCRIPTION " IN: "
@@ -36,6 +37,7 @@ static XBPACKET      out_packet    = {.header = {true, 0}};
 static XBPACKET      in_packet     = {.header = {true, 0}};
 static ADAPTER_STATE adapter_state = none;
 
+static uint8_t        drum_state_flag = no_flag;
 static DrumInputData  drum_state;
 static output_state_t outputStates[NUM_OUT];
 
@@ -75,16 +77,17 @@ void SetupHardware(void) {
     wdt_disable();
     init();
 
-    Serial1.begin(USART_BAUDRATE);
+    // SERIAL_DEBUG.begin(USART_BAUDRATE);
     GlobalInterruptEnable();
-    Serial1.print("\r\nHELLO WORLD\r\n");
+    // SERIAL_DEBUG.print("\r\nHELLO WORLD\r\n");
     if (Usb.Init() == -1) {
-        Serial1.print("\r\nOSC did not start");
+        // SERIAL_DEBUG.print("\r\nOSC did not start");
         while (1)
             ;
     }
+    MIDI.begin(MIDI_CHANNEL_OMNI);
     USB_Init();
-
+    pinMode(LED_BUILTIN, OUTPUT);
     adapter_state = init_state;
 }
 
@@ -148,6 +151,38 @@ const struct {
 const uint8_t ack[] = {0x01, 0x20, 0x05, 0x09, 0x00, 0x04, 0x20,
                        0xda, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
+                                  DrumInputData *drum_input) {
+    switch (out) {
+        case OUT_KICK:
+            drum_input->kick = state;
+            break;
+        case OUT_PAD_RED:
+            drum_input->padRed = state;
+            break;
+        case OUT_PAD_BLUE:
+            drum_input->padBlue = state;
+            break;
+        case OUT_PAD_GREEN:
+            drum_input->padGreen = state;
+            break;
+        case OUT_PAD_YELLOW:
+            drum_input->padYellow = state;
+            break;
+        case OUT_CYM_YELLOW:
+            drum_input->cymbalYellow = state;
+            break;
+        case OUT_CYM_BLUE:
+            drum_input->cymbalBlue = state;
+            break;
+        case OUT_CYM_GREEN:
+            drum_input->cymbalGreen = state;
+            break;
+        default:
+            break;
+    }
+}
+
 static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
         return;
@@ -156,61 +191,35 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     if (out == NO_OUT)
         return;
 
+    if (outputStates[out].triggered)
+        return;
+
     while (!out_packet.header.handled) {
         USB_USBTask();
         SendNextReport();
     }
 
-    switch (out) {
-        case OUT_KICK:
-            drum_state.kick = 1;
-            break;
-        case OUT_PAD_RED:
-            drum_state.padRed = 1;
-            break;
-        case OUT_PAD_BLUE:
-            drum_state.padBlue = 1;
-            break;
-        case OUT_PAD_GREEN:
-            drum_state.padGreen = 1;
-            break;
-        case OUT_PAD_YELLOW:
-            drum_state.padYellow = 1;
-            break;
-        case OUT_CYM_YELLOW:
-            drum_state.cymbalYellow = 1;
-            break;
-        case OUT_CYM_BLUE:
-            drum_state.cymbalBlue = 1;
-            break;
-        case OUT_CYM_GREEN:
-            drum_state.cymbalGreen = 1;
-            break;
-        default:
-            break;
-    }
-
     drum_state.command  = CMD_INPUT;
     drum_state.type     = TYPE_COMMAND;
     drum_state.deviceId = 0;
-    drum_state.sequence = getSequence();
     drum_state.length   = sizeof(DrumInputData) - sizeof(Frame);
+    updateDrumStateWithDrumInput(out, 1, &drum_state);
 
-    auto packet = &out_packet;
-    memset(packet->buf.buffer, 0, sizeof(packet->buf.buffer));
-    packet->header.length  = sizeof(DrumInputData);
-    packet->header.handled = false;
-    memcpy(&packet->buf.drum_input, &drum_state, sizeof(drum_state));
+    drum_state_flag |= changed_flag;
 
     outputStates[out].triggered   = true;
     outputStates[out].triggeredAt = millis();
     return;
 }
 
+static void noteOff(uint8_t note) {
+    return;
+}
+
 static void HandlePacketAuth(XBPACKET &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
-        Serial1.print("AUTHENTICATED!\r\n");
+        // SERIAL_DEBUG.print("AUTHENTICATED!\r\n");
         adapter_state = running;
         // MIDI.setHandleNoteOn(noteOn);
         return;
@@ -234,7 +243,7 @@ static void HandlePacketIdentify(XBPACKET &packet) {
             packet.header.handled = true;
             break;
         case CMD_AUTHENTICATE:
-            Serial1.print("Moving to Authenticate\r\n");
+            // SERIAL_DEBUG.print("Moving to Authenticate\r\n");
             adapter_state = authenticating;
             return HandlePacketAuth(packet);
             break;
@@ -248,7 +257,7 @@ static void HandlePacketIdentify(XBPACKET &packet) {
 static void HandlePacketInit(XBPACKET &packet) {
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
-            Serial1.print("Moving to Identify\r\n");
+            // SERIAL_DEBUG.print("Moving to Identify\r\n");
             adapter_state = identifying;
             return HandlePacketIdentify(packet);
         default:
@@ -309,10 +318,47 @@ void HID_Task(void) {
     ReceiveNextReport();
 }
 
+void MIDI_Task() {
+    while (MIDI.read()) {
+        auto location_byte = MIDI.getType();
+        auto note          = MIDI.getData1();
+        auto velocity      = MIDI.getData2();
+        if (location_byte == midi::MidiType::NoteOn) {
+            noteOn(note, velocity);
+        }
+    }
+}
+
+#define TRIGGER_HOLD 25
+
+void DRUM_STATE_Task() {
+    if (adapter_state != running)
+        return;
+    auto current_time = millis();
+    for (auto out = 0; out < NUM_OUT; out++) {
+        if (outputStates[out].triggered &&
+            current_time - outputStates[out].triggeredAt > TRIGGER_HOLD) {
+            updateDrumStateWithDrumInput(static_cast<output_t>(out), 0, &drum_state);
+            outputStates[out].triggered = false;
+            drum_state_flag |= changed_flag;
+            digitalWrite(LED_BUILTIN, LOW);
+        }
+    }
+
+    if (drum_state_flag & changed_flag) {
+        drum_state.sequence = getSequence();
+        FillPacket((uint8_t *)&drum_state, sizeof(drum_state), &out_packet);
+        drum_state_flag = no_flag;
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+}
+
 void DoTasks() {
     Usb.Task();
     HID_Task();
     USB_USBTask();
+    MIDI_Task();
+    DRUM_STATE_Task();
 }
 
 const uint8_t announce[] = {0x02, 0x20, 0x01, 0x1c, 0x7e, 0xed, 0x82, 0x8b, 0xec, 0x97, 0x00,
@@ -321,10 +367,9 @@ const uint8_t announce[] = {0x02, 0x20, 0x01, 0x1c, 0x7e, 0xed, 0x82, 0x8b, 0xec
 
 const uint16_t announce_interval = 2000;
 
-#define TRIGGER_HOLD 25
-
 int main(void) {
     SetupHardware();
+
     unsigned long last_announce_time = 0, current_time = millis();
     while (adapter_state == init_state) {
         DoTasks();
@@ -335,21 +380,8 @@ int main(void) {
         }
     }
 
-    while (adapter_state != running) {
-        DoTasks();
-    }
-    // MIDI.begin(MIDI_CHANNEL_OMNI);
     while (true) {
         DoTasks();
-        current_time = millis();
-        if ((current_time - last_announce_time) > announce_interval) {
-            noteOn(38, 50);
-            last_announce_time = current_time;
-        }  // you can technically add a note ON handler in the midi library, but i like this
-           // better
-        if (outputStates[OUT_PAD_RED].triggered &&
-            current_time - outputStates[OUT_PAD_RED].triggeredAt > TRIGGER_HOLD)
-            drum_state.padRed = 0;
     }
 }
 

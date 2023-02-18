@@ -185,10 +185,11 @@ public:
     uint8_t XboxCommand(uint8_t *data, uint16_t nbytes);
 
 protected:
+    USB *pUsb;
+
     void (*dataCallback)(const uint8_t *data, const uint8_t &ndata);
 
     /** Pointer to USB class instance. */
-    USB *pUsb;
     /** Device address. */
     uint8_t bAddress;
     /** Endpoint info structure. */

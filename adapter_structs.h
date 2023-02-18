@@ -154,3 +154,8 @@ struct output_state_t {
     milliseconds triggeredAt;
     bool         triggered;
 };
+
+enum DrumStateFlags {
+    no_flag      = 0,
+    changed_flag = (1 << 0),
+};

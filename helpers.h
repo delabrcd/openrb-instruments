@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "adapter_structs.h"
-
+// #define  SERIAL_DEBUG Serial1
 const char *getCommandName(int cmd);
 void        SerialPrintHex(const uint8_t *val, const uint8_t &nval);
 output_t    outputForNote(const uint8_t &note);
