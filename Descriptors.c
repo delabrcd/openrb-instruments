@@ -5,7 +5,6 @@
 
 #include <avr/pgmspace.h>
 #include "LUFA/Drivers/USB/USB.h"
-#include <LUFA/Drivers/Peripheral/Serial.h>
 #include "Config/AdapterConfig.h"
 #include "Config/LUFAConfig.h"
 const USB_Descriptor_Device_t PROGMEM DeviceDescriptor = {
@@ -171,7 +170,6 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue, const uint8_t wIndex,
     const uint8_t DescriptorNumber = (wValue & 0xFF);
     void         *Address          = NULL;
     uint16_t      Size             = NO_DESCRIPTOR;
-    Serial_SendString("CALLBACK_USB_GetDescriptor\r\n");
     switch (DescriptorType) {
         case DTYPE_Device:
             Address = (void *)&DeviceDescriptor;

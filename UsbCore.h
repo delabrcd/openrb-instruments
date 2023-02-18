@@ -27,40 +27,7 @@ e-mail   :  support@circuitsathome.com
 #else
 #define USBCORE_H
 
-// Not used anymore? If anyone uses this, please let us know so that this may be
-// moved to the proper place, settings.h.
-// #define USB_METHODS_INLINE
-
-/* shield pins. First parameter - SS pin, second parameter - INT pin */
-#ifdef BOARD_BLACK_WIDDOW
-typedef MAX3421e<P6, P3> MAX3421E;  // Black Widow
-#elif defined(CORE_TEENSY) && (defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__))
-#if EXT_RAM
-typedef MAX3421e<P20, P7> MAX3421E;  // Teensy++ 2.0 with XMEM2
-#else
-typedef MAX3421e<P9, P8> MAX3421E;  // Teensy++ 1.0 and 2.0
-#endif
-#elif defined(BOARD_MEGA_ADK)
-typedef MAX3421e<P53, P54> MAX3421E;  // Arduino Mega ADK
-#elif defined(ARDUINO_AVR_BALANDUINO)
-typedef MAX3421e<P20, P19> MAX3421E;  // Balanduino
-#elif defined(__ARDUINO_X86__) && PLATFORM_ID == 0x06
-typedef MAX3421e<P3, P2>
-    MAX3421E;  // The Intel Galileo supports much faster read and write speed at pin 2 and 3
-#elif defined(ESP8266)
-typedef MAX3421e<P15, P5> MAX3421E;  // ESP8266 boards
-#elif defined(ESP32)
-typedef MAX3421e<P5, P17> MAX3421E;  // ESP32 boards
-#elif defined(MIGHTYCORE)
-typedef MAX3421e<Pb4, Pb3> MAX3421E;  // MightyCore
-#elif (defined(__AVR_ATmega644P__) || defined(__AVR_ATmega1284P__))
-typedef MAX3421e<Pb4, Pb3> MAX3421E;  // Sanguino
-#else
-typedef MAX3421e<P10, P9>
-    MAX3421E;  // Official Arduinos (UNO, Duemilanove, Mega, 2560, Leonardo, Due etc.), Intel
-               // Edison, Intel Galileo 2 or Teensy 2.0 and 3.x
-#endif
-
+#include "usbhost.h"
 /* Common setup data constant combinations  */
 #define bmREQ_GET_DESCR                                  \
     USB_SETUP_DEVICE_TO_HOST | USB_SETUP_TYPE_STANDARD | \
@@ -221,7 +188,7 @@ public:
     virtual void Parse(const uint16_t len, const uint8_t *pbuf, const uint16_t &offset) = 0;
 };
 
-class USB : public MAX3421E {
+class USB : public MAX3421e {
     AddressPoolImpl<USB_NUMDEVICES> addrPool;
     USBDeviceConfig                *devConfig[USB_NUMDEVICES];
     uint8_t                         bmHubPre;

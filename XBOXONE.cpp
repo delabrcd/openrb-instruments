@@ -24,8 +24,10 @@
 // #define EXTRADEBUG // Uncomment to get even more debugging data
 // #define PRINTREPORT // Uncomment to print the report send by the Xbox ONE Controller
 
-XBOXONE::XBOXONE(USB *p)
-    : pUsb(p),           // pointer to USB class instance - mandatory
+#include "HardwareSerial.h"
+XBOXONE::XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata))
+    : pUsb(pUsb),  // pointer to USB class instance - mandatory
+      dataCallback(data_cb),
       bAddress(0),       // device address - mandatory
       bNumEP(1),         // If config descriptor needs to be parsed
       qNextPollTime(0),  // Reset NextPollTime
@@ -42,7 +44,7 @@ XBOXONE::XBOXONE(USB *p)
     if (pUsb)                             // register in USB subsystem
         pUsb->RegisterDeviceClass(this);  // set devConfig[] entry
 }
-#include <LUFA/Drivers/Peripheral/Serial.h>
+
 uint8_t XBOXONE::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     uint8_t                buf[sizeof(USB_DEVICE_DESCRIPTOR)];
     USB_DEVICE_DESCRIPTOR *udd = reinterpret_cast<USB_DEVICE_DESCRIPTOR *>(buf);
@@ -59,9 +61,9 @@ uint8_t XBOXONE::Init(uint8_t parent, uint8_t port, bool lowspeed) {
 #endif
     // check if address has already been assigned to an instance
     if (bAddress) {
-        Serial_SendString("ADDRESS IN USE");
+        Serial1.print("ADDRESS IN USE");
 #ifdef DEBUG_USB_HOST
-            Notify(PSTR("\r\nAddress in use"), 0x80);
+        Notify(PSTR("\r\nAddress in use"), 0x80);
 #endif
         return USB_ERROR_CLASS_INSTANCE_ALREADY_IN_USE;
     }
@@ -182,7 +184,7 @@ uint8_t XBOXONE::Init(uint8_t parent, uint8_t port, bool lowspeed) {
 
     delay(200);  // let things settle
 
-    // Initialize the controller for input
+    // // Initialize the controller for input
     cmdCounter = 0;  // Reset the counter used when sending out the commands
     uint8_t writeBuf[5];
     writeBuf[0] = 0x05;
@@ -194,7 +196,6 @@ uint8_t XBOXONE::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     if (rcode)
         goto Fail;
 
-    onInit();
     XboxOneConnected = true;
     bPollEnable      = true;
     return 0;  // Successful configuration
@@ -307,30 +308,19 @@ uint8_t XBOXONE::Poll() {
     if (!bPollEnable)
         return 0;
 
-    if ((int32_t)((uint32_t)millis() - qNextPollTime) >=
-        0L) {  // Do not poll if shorter than polling interval
+    // Do not poll if shorter than polling interval
+    if ((int32_t)((uint32_t)millis() - qNextPollTime) >= 0L) {
         qNextPollTime   = (uint32_t)millis() + pollInterval;  // Set new poll time
         uint16_t length = (uint16_t)epInfo[XBOX_ONE_INPUT_PIPE]
                               .maxPktSize;  // Read the maximum packet size from the endpoint
         uint8_t rcode = pUsb->inTransfer(bAddress, epInfo[XBOX_ONE_INPUT_PIPE].epAddr, &length,
                                          readBuf, pollInterval);
+
         if (!rcode) {
+            if (dataCallback)
+                (*dataCallback)(readBuf, length);
             readReport();
-#ifdef PRINTREPORT  // Uncomment "#define PRINTREPORT" to print the report send by the Xbox ONE
-                    // Controller
-            for (uint8_t i = 0; i < length; i++) {
-                D_PrintHex<uint8_t>(readBuf[i], 0x80);
-                Notify(PSTR(" "), 0x80);
-            }
-            Notify(PSTR("\r\n"), 0x80);
-#endif
         }
-#ifdef DEBUG_USB_HOST
-        else if (rcode != hrNAK) {  // Not a matter of no update to send
-            Notify(PSTR("\r\nXbox One Poll Failed, error code: "), 0x80);
-            NotifyFail(rcode);
-        }
-#endif
     }
     return rcode;
 }
@@ -450,43 +440,13 @@ int16_t XBOXONE::getAnalogHat(AnalogHatEnum a) {
 
 /* Xbox Controller commands */
 uint8_t XBOXONE::XboxCommand(uint8_t *data, uint16_t nbytes) {
-    data[2]       = cmdCounter++;  // Increment the output command counter
+    // data[2]       = cmdCounter++;  // Increment the output command counter
     uint8_t rcode = pUsb->outTransfer(bAddress, epInfo[XBOX_ONE_OUTPUT_PIPE].epAddr, nbytes, data);
-#ifdef DEBUG_USB_HOST
-    if (rcode) {
-        Notify(PSTR("\r\nXboxCommand failed. Return: "), 0x80);
-        D_PrintHex<uint8_t>(rcode, 0x80);
-    }
-#endif
     return rcode;
 }
 
 // The Xbox One packets are described at: https://github.com/quantus/xbox-one-controller-protocol
-void XBOXONE::onInit() {
-    // A short buzz to show the controller is active
-    uint8_t writeBuf[13];
-
-    // Activate rumble
-    writeBuf[0] = 0x09;
-    writeBuf[1] = 0x00;
-    // Byte 2 is set in "XboxCommand"
-
-    // Single rumble effect
-    writeBuf[3]  = 0x09;  // Substructure (what substructure rest of this packet has)
-    writeBuf[4]  = 0x00;  // Mode
-    writeBuf[5]  = 0x0F;  // Rumble mask (what motors are activated) (0000 lT rT L R)
-    writeBuf[6]  = 0x04;  // lT force
-    writeBuf[7]  = 0x04;  // rT force
-    writeBuf[8]  = 0x20;  // L force
-    writeBuf[9]  = 0x20;  // R force
-    writeBuf[10] = 0x80;  // Length of pulse
-    writeBuf[11] = 0x00;  // Off period
-    writeBuf[12] = 0x00;  // Repeat count
-    XboxCommand(writeBuf, 13);
-
-    if (pFuncOnInit)
-        pFuncOnInit();  // Call the user function
-}
+void XBOXONE::onInit() {}
 
 void XBOXONE::setRumbleOff() {
     uint8_t writeBuf[13];
