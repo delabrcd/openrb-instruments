@@ -20,6 +20,7 @@
  */
 
 #include "XBOXONE.h"
+#include "helpers.h"
 // To enable serial debugging see "settings.h"
 // #define EXTRADEBUG // Uncomment to get even more debugging data
 // #define PRINTREPORT // Uncomment to print the report send by the Xbox ONE Controller
@@ -61,7 +62,7 @@ uint8_t XBOXONE::Init(uint8_t parent, uint8_t port, bool lowspeed) {
 #endif
     // check if address has already been assigned to an instance
     if (bAddress) {
-        Serial1.print("ADDRESS IN USE");
+        // SERIAL_DEBUG.print("ADDRESS IN USE");
 #ifdef DEBUG_USB_HOST
         Notify(PSTR("\r\nAddress in use"), 0x80);
 #endif

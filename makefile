@@ -21,12 +21,18 @@ TARGET       = adapter_common
 
 INCLUDE_DIRS := -I./ \
 				-IConfig \
+				-Iarduino \
 				-Imidi \
+				-Iusbhost 
 
-SRCS 		:= 	$(wildcard *.c) 
+SRCS 		:= 	$(wildcard *.c) \
+				$(wildcard arduino/*.c)	
 
 CPP_SRCS 	:= 	$(wildcard *.cpp) \
-				$(wildcard midi/*.cpp)	
+				$(wildcard midi/*.cpp)	\
+				$(wildcard usbhost/*.cpp) \
+				$(wildcard arduino/*.cpp)	
+
 			
 SRC          = $(TARGET).cpp $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(SRCS) $(CPP_SRCS)
 LUFA_PATH    = LUFA

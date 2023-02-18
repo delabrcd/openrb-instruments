@@ -63,6 +63,8 @@ bool FillPacket(const uint8_t *input, const uint8_t &length, XBPACKET *packet) {
     packet->header.length  = length;
     packet->header.handled = false;
     memcpy(packet->buf.buffer, input, length);
+    // if (packet->buf.frame.command != CMD_ACKNOWLEDGE)
+    //     packet->buf.frame.sequence = getSequence();
     return true;
 }
 
@@ -112,19 +114,19 @@ const char *getCommandName(int cmd) {
     }
 }
 void SerialPrintHex(const uint8_t *val, const uint8_t &nval) {
-    Serial1.print(" [ ");
+    // SERIAL_DEBUG.print(" [ ");
     for (int i = 0; i < nval; i++) {
         char buf[8];
         snprintf(buf, 8, "%02x, ", val[i]);
-        Serial1.print(buf);
+        // SERIAL_DEBUG.print(buf);
     }
-    Serial1.print(" ] ");
+    // SERIAL_DEBUG.print(" ] ");
 }
 
 void printPacket(const XBPACKET &packet, const char *descriptor) {
-    Serial1.print(descriptor);
-    Serial1.print(getCommandName(packet.buf.frame.command));
+    // SERIAL_DEBUG.print(descriptor);
+    // SERIAL_DEBUG.print(getCommandName(packet.buf.frame.command));
     SerialPrintHex(packet.buf.buffer, packet.header.length);
-    Serial1.print("\r\n");
+    // SERIAL_DEBUG.print("\r\n");
     return;
 }

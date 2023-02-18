@@ -17,6 +17,7 @@ e-mail   :  support@circuitsathome.com
 /* USB functions */
 
 #include "Usb.h"
+#include "helpers.h"
 
 static uint8_t usb_error = 0;
 static uint8_t usb_task_state;
@@ -106,9 +107,9 @@ uint8_t USB::SetAddress(uint8_t addr, uint8_t ep, EpInfo **ppep, uint16_t *nak_l
 
     uint8_t mode = regRd(rMODE);
 
-    // Serial1.print("\r\nMode: ");
+    // // SERIAL_DEBUG.print("\r\nMode: ");
     // Serial.println( mode, HEX);
-    // Serial1.print("\r\nLS: ");
+    // // SERIAL_DEBUG.print("\r\nLS: ");
     // Serial.println(p->lowspeed, HEX);
 
     // Set bmLOWSPEED and bmHUBPRE in case of low-speed device, reset them otherwise
@@ -521,7 +522,6 @@ void USB::Task(void)  // USB state machine
         case USB_DETACHED_SUBSTATE_ILLEGAL:  // just sit here
             break;
         case USB_ATTACHED_SUBSTATE_SETTLE:  // settle time for just attached device
-            Serial1.print("SETTLING\r\n");
             if ((int32_t)((uint32_t)millis() - delay) >= 0L)
                 usb_task_state = USB_ATTACHED_SUBSTATE_RESET_DEVICE;
             else
@@ -556,7 +556,7 @@ void USB::Task(void)  // USB state machine
                 break;  // don't fall through
         case USB_STATE_CONFIGURING:
 
-            Serial1.print("\r\nConf.LS: ");
+            // SERIAL_DEBUG.print("\r\nConf.LS: ");
             // Serial.println(lowspeed, HEX);
 
             rcode = Configuring(0, 0, lowspeed);
@@ -620,7 +620,7 @@ uint8_t USB::DefaultAddressing(uint8_t parent, uint8_t port, bool lowspeed) {
 #include "HardwareSerial.h"
 
 uint8_t USB::AttemptConfig(uint8_t driver, uint8_t parent, uint8_t port, bool lowspeed) {
-    Serial1.print("AttemptConfig: parent = , port = \r\n");
+    // SERIAL_DEBUG.print("AttemptConfig: parent = , port = \r\n");
     uint8_t retries = 0;
 
 again:
@@ -701,9 +701,9 @@ uint8_t USB::Configuring(uint8_t parent, uint8_t port, bool lowspeed) {
     // uint8_t bAddress = 0;
     char buf2[128];
 
-    Serial1.print("CONFIGURING\r\n");
+    // SERIAL_DEBUG.print("CONFIGURING\r\n");
     snprintf(buf2, 128, "Configuring: parent = %i, port = %i\r\n", parent, port);
-    Serial1.print(buf2);
+    // SERIAL_DEBUG.print(buf2);
     uint8_t                devConfigIndex;
     uint8_t                rcode = 0;
     uint8_t                buf[sizeof(USB_DEVICE_DESCRIPTOR)];
@@ -723,7 +723,7 @@ uint8_t USB::Configuring(uint8_t parent, uint8_t port, bool lowspeed) {
     // Get pointer to pseudo device with address 0 assigned
     p = addrPool.GetUsbDevicePtr(0);
     snprintf(buf2, 64, "addr: %02xh", p->epinfo->epAddr);
-    Serial1.print(buf2);
+    // SERIAL_DEBUG.print(buf2);
     if (!p) {
         // printf("Configuring error: USB_ERROR_ADDRESS_NOT_FOUND_IN_POOL\r\n");
         return USB_ERROR_ADDRESS_NOT_FOUND_IN_POOL;
@@ -745,7 +745,7 @@ uint8_t USB::Configuring(uint8_t parent, uint8_t port, bool lowspeed) {
     p->epinfo = oldep_ptr;
 
     if (rcode) {
-        Serial1.print("Configuring error: Can't get USB_DEVICE_DESCRIPTOR\r\n");
+        // SERIAL_DEBUG.print("Configuring error: Can't get USB_DEVICE_DESCRIPTOR\r\n");
         // printf("Configuring error: Can't get USB_DEVICE_DESCRIPTOR\r\n");
         return rcode;
     }
