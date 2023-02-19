@@ -95,9 +95,6 @@ struct DrumInputData : public Frame {
 
 } __attribute__((packed));
 
-// constexpr size_t size = sizeof(DrumInputData);
-// static_assert(sizeof(DrumInputData) <= ADAPTER_OUT_SIZE);
-
 struct XBPACKET {
     struct {
         uint8_t  handled;

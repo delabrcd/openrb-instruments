@@ -4,9 +4,9 @@
  */
 
 #include <avr/pgmspace.h>
-#include "LUFA/Drivers/USB/USB.h"
+#include <LUFA/Drivers/USB/USB.h>
 #include "Config/AdapterConfig.h"
-#include "Config/LUFAConfig.h"
+
 const USB_Descriptor_Device_t PROGMEM DeviceDescriptor = {
     .Header                 = {.Size = sizeof(DeviceDescriptor), .Type = DTYPE_Device},
     .USBSpecification       = VERSION_BCD(02.00),
