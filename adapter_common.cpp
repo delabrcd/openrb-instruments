@@ -17,6 +17,10 @@
 #include "packet_helpers.h"
 #include "Identifiers.hpp"
 
+#ifdef SERIAL_DEBUG
+#include "debug_helpers.h"
+#endif
+
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/)()) {
     return 0;
@@ -253,8 +257,10 @@ static inline void DoTasks() {
     Usb.Task();
     HID_Task();
     USB_USBTask();
+#ifndef SERIAL_DEBUG
     MIDI_Task();
     DRUM_STATE_Task();
+#endif
 }
 
 static void SetupHardware(void) {
@@ -272,7 +278,9 @@ static void SetupHardware(void) {
         while (1)
             ;
     }
+#ifndef SERIAL_DEBUG
     MIDI.begin(MIDI_CHANNEL_OMNI);
+#endif
     USB_Init();
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
