@@ -7,24 +7,15 @@
 #include <stdlib.h>
 
 #include <LUFA/Drivers/USB/USB.h>
-// #include <LUFA/Drivers/USB/Class/CDCClass.h>
 
 #include "Arduino.h"
 #include "HardwareSerial.h"
 #include "MIDI.h"
 #include "Config/AdapterConfig.h"
-#include "wiring_private.h"
 #include "XBOXONE.h"
 #include "adapter_structs.h"
-#include "helpers.h"
-
-#define MAX_CONTROL_TRANSFER_SIZE 64
-#define VELOCITY_THRESH 10
-// #define USART_BAUDRATE 115200LL
-// #define USART_DOUBLE_SPEED false
-
-#define OUT_DESCRIPTION "OUT: "
-#define IN_DESCRIPTION " IN: "
+#include "packet_helpers.h"
+#include "Identifiers.hpp"
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/)()) {
@@ -40,20 +31,14 @@ static ADAPTER_STATE adapter_state = none;
 static uint8_t        drum_state_flag = no_flag;
 static DrumInputData  drum_state;
 static output_state_t outputStates[NUM_OUT];
+static USB            Usb;
 
-void forceHardReset(void) {
-    cli();                  // disable interrupts
-    wdt_enable(WDTO_15MS);  // enable watchdog
-    while (1) {
-    }  // wait for watchdog to reset processor
-}
-
-void XbPacketReceived(const uint8_t *data, const uint8_t &ndata) {
+void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata) {
     if (ndata < sizeof(Frame))
         return;
 
     if (adapter_state == authenticating) {
-        FillPacket(data, ndata, &out_packet);
+        fillPacket(data, ndata, &out_packet);
         return;
     }
 
@@ -63,125 +48,23 @@ void XbPacketReceived(const uint8_t *data, const uint8_t &ndata) {
     auto frame = (Frame *)data;
     switch (frame->command) {
         case CMD_INPUT:
-            FillInputPacketFromControllerData(data, ndata, &out_packet);
+            fillInputPacketFromControllerData(data, ndata, &out_packet);
             break;
         default:
             break;
     }
 }
 
-static USB     Usb;
-static XBOXONE Xbox(&Usb, XbPacketReceived);
+static XBOXONE Xbox(&Usb, xbPacketReceivedCB);
 
-void SetupHardware(void) {
-    wdt_disable();
-    init();
-
-    // SERIAL_DEBUG.begin(USART_BAUDRATE);
-    GlobalInterruptEnable();
-    // SERIAL_DEBUG.print("\r\nHELLO WORLD\r\n");
-    if (Usb.Init() == -1) {
-        // SERIAL_DEBUG.print("\r\nOSC did not start");
-        while (1)
-            ;
-    }
-    MIDI.begin(MIDI_CHANNEL_OMNI);
-    USB_Init();
-    pinMode(LED_BUILTIN, OUTPUT);
-    adapter_state = init_state;
+#if 0
+static void forceHardReset(void) {
+    cli();                  // disable interrupts
+    wdt_enable(WDTO_15MS);  // enable watchdog
+    while (1) {
+    }  // wait for watchdog to reset processor
 }
-
-void EVENT_USB_Device_Connect(void) {}
-
-void EVENT_USB_Device_Disconnect(void) {}
-
-void EVENT_USB_Device_ConfigurationChanged(void) {
-    Endpoint_ConfigureEndpoint(ADAPTER_IN_NUM, EP_TYPE_INTERRUPT, ADAPTER_IN_SIZE, 1);
-    Endpoint_ConfigureEndpoint(ADAPTER_OUT_NUM, EP_TYPE_INTERRUPT, ADAPTER_OUT_SIZE, 1);
-}
-
-void SendNextReport(void) {
-    Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
-
-    if (!Endpoint_IsINReady()) {
-        return;
-    }
-    if (out_packet.header.handled)
-        return;
-
-    Endpoint_Write_Stream_LE(out_packet.buf.buffer, out_packet.header.length, NULL);
-    Endpoint_ClearIN();
-    printPacket(out_packet, OUT_DESCRIPTION);
-    out_packet.header.handled = true;
-}
-
-const uint8_t drumreport2[] = {
-    0x04, 0xf0, 0x01, 0x3a, 0xc5, 0x01, 0x10, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0xc5, 0x00, 0x9d, 0x00, 0x16, 0x00, 0x1b, 0x00, 0x1c, 0x00, 0x23, 0x00,
-    0x29, 0x00, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x06, 0x01, 0x02, 0x03, 0x04, 0x06, 0x07, 0x05, 0x01, 0x04, 0x05, 0x06, 0x0a, 0x02};
-
-const uint8_t drumreport3[] = {
-    0x04, 0xa0, 0x01, 0xba, 0x00, 0x3a, 0x17, 0x00, 0x4d, 0x61, 0x64, 0x43, 0x61, 0x74, 0x7a, 0x2e,
-    0x58, 0x62, 0x6f, 0x78, 0x2e, 0x44, 0x72, 0x75, 0x6d, 0x73, 0x2e, 0x47, 0x6c, 0x61, 0x6d, 0x27,
-    0x00, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x73, 0x2e, 0x58, 0x62, 0x6f, 0x78, 0x2e, 0x49, 0x6e,
-    0x70, 0x75, 0x74, 0x2e, 0x4e, 0x61, 0x76, 0x69, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f};
-
-const uint8_t drumreport4[] = {
-    0x04, 0xa0, 0x01, 0xba, 0x00, 0x74, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x03, 0x93,
-    0x28, 0x18, 0x06, 0xe0, 0xcc, 0x85, 0x4b, 0x92, 0x71, 0x0a, 0x10, 0xdb, 0xab, 0x7e, 0x07, 0xe7,
-    0x1f, 0xf3, 0xb8, 0x86, 0x73, 0xe9, 0x40, 0xa9, 0xf8, 0x2f, 0x21, 0x26, 0x3a, 0xcf, 0xb7, 0x56,
-    0xff, 0x76, 0x97, 0xfd, 0x9b, 0x81, 0x45, 0xad, 0x45, 0xb6, 0x45, 0xbb, 0xa5, 0x26, 0xd6, 0x01};
-
-const uint8_t drumreport5[] = {0x04, 0xb0, 0x01, 0x17, 0xae, 0x01, 0x17, 0x00, 0x20, 0x0a, 0x00,
-                               0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-const uint8_t drumreport6[] = {0x04, 0xa0, 0x01, 0x00, 0xc5, 0x01, 0x00, 0x00};
-
-const struct {
-    uint8_t        size;
-    const uint8_t *data;
-} identify_packets[] = {{sizeof(drumreport2), drumreport2},
-                        {sizeof(drumreport3), drumreport3},
-                        {sizeof(drumreport4), drumreport4},
-                        {sizeof(drumreport5), drumreport5},
-                        {sizeof(drumreport6), drumreport6}};
-
-const uint8_t ack[] = {0x01, 0x20, 0x05, 0x09, 0x00, 0x04, 0x20,
-                       0xda, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
-                                  DrumInputData *drum_input) {
-    switch (out) {
-        case OUT_KICK:
-            drum_input->kick = state;
-            break;
-        case OUT_PAD_RED:
-            drum_input->padRed = state;
-            break;
-        case OUT_PAD_BLUE:
-            drum_input->padBlue = state;
-            break;
-        case OUT_PAD_GREEN:
-            drum_input->padGreen = state;
-            break;
-        case OUT_PAD_YELLOW:
-            drum_input->padYellow = state;
-            break;
-        case OUT_CYM_YELLOW:
-            drum_input->cymbalYellow = state;
-            break;
-        case OUT_CYM_BLUE:
-            drum_input->cymbalBlue = state;
-            break;
-        case OUT_CYM_GREEN:
-            drum_input->cymbalGreen = state;
-            break;
-        default:
-            break;
-    }
-}
+#endif
 
 static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
@@ -193,11 +76,6 @@ static void noteOn(uint8_t note, uint8_t velocity) {
 
     if (outputStates[out].triggered)
         return;
-
-    while (!out_packet.header.handled) {
-        USB_USBTask();
-        SendNextReport();
-    }
 
     drum_state.command  = CMD_INPUT;
     drum_state.type     = TYPE_COMMAND;
@@ -212,16 +90,14 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     return;
 }
 
-static void noteOff(uint8_t note) {
-    return;
-}
-
 static void HandlePacketAuth(XBPACKET &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
-        // SERIAL_DEBUG.print("AUTHENTICATED!\r\n");
+        digitalWrite(LED_BUILTIN, HIGH);
+#ifdef SERIAL_DEBUG
+        SERIAL_DEBUG.print("AUTHENTICATED!\r\n");
+#endif
         adapter_state = running;
-        // MIDI.setHandleNoteOn(noteOn);
         return;
     }
 
@@ -238,12 +114,14 @@ static void HandlePacketIdentify(XBPACKET &packet) {
         case CMD_ACKNOWLEDGE:
             if (identify_sequence >= sizeof(identify_packets))
                 identify_sequence = 0;
-            FillPacket(identify_packets[identify_sequence].data,
+            fillPacket(identify_packets[identify_sequence].data,
                        identify_packets[identify_sequence].size, &out_packet);
             packet.header.handled = true;
             break;
         case CMD_AUTHENTICATE:
-            // SERIAL_DEBUG.print("Moving to Authenticate\r\n");
+#ifdef SERIAL_DEBUG
+            SERIAL_DEBUG.print("Moving to Authenticate\r\n");
+#endif
             adapter_state = authenticating;
             return HandlePacketAuth(packet);
             break;
@@ -257,7 +135,9 @@ static void HandlePacketIdentify(XBPACKET &packet) {
 static void HandlePacketInit(XBPACKET &packet) {
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
-            // SERIAL_DEBUG.print("Moving to Identify\r\n");
+#ifdef SERIAL_DEBUG
+            SERIAL_DEBUG.print("Moving to Identify\r\n");
+#endif
             adapter_state = identifying;
             return HandlePacketIdentify(packet);
         default:
@@ -265,11 +145,12 @@ static void HandlePacketInit(XBPACKET &packet) {
     }
 }
 
-void HandlePacketRunning(XBPACKET &packet) {
+static void HandlePacketRunning(XBPACKET &packet) {
     // i'm sure i'll figure out something to do here :^)
+    return;
 }
 
-void HandlePacket(XBPACKET &packet) {
+static void HandlePacket(XBPACKET &packet) {
     switch (adapter_state) {
         case none:
             return;
@@ -287,7 +168,7 @@ void HandlePacket(XBPACKET &packet) {
     return;
 }
 
-void ReceiveNextReport(void) {
+static void ReceiveNextReport(void) {
     Endpoint_SelectEndpoint(ADAPTER_OUT_NUM);
 
     if (Endpoint_IsOUTReceived()) {
@@ -304,13 +185,32 @@ void ReceiveNextReport(void) {
 
         Endpoint_ClearOUT();
         if (in_packet.header.length && !in_packet.header.handled) {
+#ifdef SERIAL_DEBUG
             printPacket(in_packet, IN_DESCRIPTION);
+#endif
             HandlePacket(in_packet);
         }
     }
 }
 
-void HID_Task(void) {
+void SendNextReport(void) {
+    Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
+
+    if (!Endpoint_IsINReady()) {
+        return;
+    }
+    if (out_packet.header.handled)
+        return;
+
+    Endpoint_Write_Stream_LE(out_packet.buf.buffer, out_packet.header.length, NULL);
+    Endpoint_ClearIN();
+#ifdef SERIAL_DEBUG
+    printPacket(out_packet, OUT_DESCRIPTION);
+#endif
+    out_packet.header.handled = true;
+}
+
+static void HID_Task(void) {
     if (USB_DeviceState != DEVICE_STATE_Configured)
         return;
 
@@ -318,7 +218,7 @@ void HID_Task(void) {
     ReceiveNextReport();
 }
 
-void MIDI_Task() {
+static void MIDI_Task() {
     while (MIDI.read()) {
         auto location_byte = MIDI.getType();
         auto note          = MIDI.getData1();
@@ -329,31 +229,27 @@ void MIDI_Task() {
     }
 }
 
-#define TRIGGER_HOLD 25
-
-void DRUM_STATE_Task() {
+static void DRUM_STATE_Task() {
     if (adapter_state != running)
         return;
     auto current_time = millis();
     for (auto out = 0; out < NUM_OUT; out++) {
         if (outputStates[out].triggered &&
-            current_time - outputStates[out].triggeredAt > TRIGGER_HOLD) {
+            current_time - outputStates[out].triggeredAt > TRIGGER_HOLD_MS) {
             updateDrumStateWithDrumInput(static_cast<output_t>(out), 0, &drum_state);
             outputStates[out].triggered = false;
             drum_state_flag |= changed_flag;
-            digitalWrite(LED_BUILTIN, LOW);
         }
     }
 
     if (drum_state_flag & changed_flag) {
         drum_state.sequence = getSequence();
-        FillPacket((uint8_t *)&drum_state, sizeof(drum_state), &out_packet);
+        fillPacket((uint8_t *)&drum_state, sizeof(drum_state), &out_packet);
         drum_state_flag = no_flag;
-        digitalWrite(LED_BUILTIN, HIGH);
     }
 }
 
-void DoTasks() {
+static inline void DoTasks() {
     Usb.Task();
     HID_Task();
     USB_USBTask();
@@ -361,11 +257,27 @@ void DoTasks() {
     DRUM_STATE_Task();
 }
 
-const uint8_t announce[] = {0x02, 0x20, 0x01, 0x1c, 0x7e, 0xed, 0x82, 0x8b, 0xec, 0x97, 0x00,
-                            0x00, 0x38, 0x07, 0x62, 0x42, 0x01, 0x00, 0x00, 0x00, 0xe6, 0x00,
-                            0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00};
-
-const uint16_t announce_interval = 2000;
+static void SetupHardware(void) {
+    wdt_disable();
+    init();
+#ifdef SERIAL_DEBUG
+    SERIAL_DEBUG.begin(DEBUG_USART_BAUDRATE);
+    SERIAL_DEBUG.print("\r\nHELLO WORLD\r\n");
+#endif
+    GlobalInterruptEnable();
+    if (Usb.Init() == -1) {
+#ifdef SERIAL_DEBUG
+        SERIAL_DEBUG.print("\r\nOSC did not start");
+#endif
+        while (1)
+            ;
+    }
+    MIDI.begin(MIDI_CHANNEL_OMNI);
+    USB_Init();
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+    adapter_state = init_state;
+}
 
 int main(void) {
     SetupHardware();
@@ -374,58 +286,13 @@ int main(void) {
     while (adapter_state == init_state) {
         DoTasks();
         current_time = millis();
-        if ((current_time - last_announce_time) > announce_interval) {
-            FillPacket(announce, sizeof(announce), &out_packet);
+        if (((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) && Xbox.XboxOneConnected) {
+            fillPacket(announce, sizeof(announce), &out_packet);
             last_announce_time = millis();
         }
     }
 
     while (true) {
         DoTasks();
-    }
-}
-
-const uint8_t PROGMEM request144_index_4[] = {
-    0x28, 0x00, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x58, 0x47, 0x49, 0x50, 0x31, 0x30, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-void EVENT_USB_Device_ControlRequest(void) {
-    if (USB_ControlRequest.bmRequestType & REQTYPE_VENDOR) {
-        if (USB_ControlRequest.bmRequestType & REQDIR_DEVICETOHOST) {
-            if (USB_ControlRequest.bRequest == 144) {
-                uint8_t recipient = USB_ControlRequest.bmRequestType & 0x1F;
-                if (recipient == REQREC_DEVICE) {
-                    if (USB_ControlRequest.wIndex == 0x0004) {
-                        Endpoint_ClearSETUP();
-                        Endpoint_Write_Control_PStream_LE(request144_index_4,
-                                                          USB_ControlRequest.wLength);
-                        Endpoint_ClearOUT();
-                    }
-                } else if (recipient == REQREC_INTERFACE) {
-                    if (USB_ControlRequest.wIndex == 0x0005) {
-                        Endpoint_ClearSETUP();
-                        Endpoint_ClearOUT();
-                    }
-                }
-            }
-        }
-    } else {
-        if (USB_ControlRequest.bmRequestType & REQREC_INTERFACE) {
-            if (USB_ControlRequest.bmRequestType & REQDIR_DEVICETOHOST) {
-                if (USB_ControlRequest.bRequest == REQ_GetInterface) {
-                    uint8_t data[1] = {0x00};
-                    Endpoint_ClearSETUP();
-                    Endpoint_Write_Control_Stream_LE(data, sizeof(data));
-                    Endpoint_ClearOUT();
-                }
-            } else {
-                if (USB_ControlRequest.bRequest == REQ_SetInterface) {
-                    Endpoint_ClearSETUP();
-                    // wLength is 0
-                    Endpoint_ClearIN();
-                }
-            }
-        }
     }
 }
