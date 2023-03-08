@@ -81,6 +81,13 @@ Any time it is reconnected / powered, the XBOX controller will need to be plugge
 
 This should be a mostly plug and play solution, but there is more polishing that needs to be done - I'm not sure it syncs up perfectly with the timing of the other XBOX wireless instruments and additional support for USB MIDI and XB360 instruments is coming in the future.
 
+<div style="text-align: center;">
+  <a href="https://www.buymeacoffee.com/delabrcdd" target="_blank" >
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee">
+  </a>
+</div>
+
+
 
 [^1]: Host Shields are very finicky - the most popular design that floats around is incorrect, so be sure that the PCB is white **AND** product picture includes the "RoHS" stamp or has "Arduino Meets Android", printed above the "USB Host Shield" text 
 [^2]: only serial midi is supported for now, but with more code in the future usb midi is possible using only the host shield and a usb HUB
