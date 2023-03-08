@@ -1,8 +1,8 @@
-# XBOX ONE ROCKBAND PRO DRUMS USB 
+# OPENRB-INSTRUMENTS
 an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and presenting itself as pro drums, very close in functionality to the [Roll Limitless](https://rolllimitless.com/) but open source. 
 
 # Table of Contents
-- [XBOX ONE ROCKBAND PRO DRUMS USB](#xbox-one-rockband-pro-drums-usb)
+- [OPENRB-INSTRUMENTS](#openrb-instruments)
 - [Table of Contents](#table-of-contents)
 - [Parts](#parts)
   - [Necassary Parts](#necassary-parts)
@@ -10,6 +10,9 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 - [Assembly](#assembly)
   - [Physical Assembly](#physical-assembly)
   - [Flashing the Arduino](#flashing-the-arduino)
+    - [AVR-programmer](#avr-programmer)
+    - [Manually Flashing With avrdude](#manually-flashing-with-avrdude)
+    - [Building The Code](#building-the-code)
 - [Usage](#usage)
 
 # Parts
@@ -20,7 +23,7 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 - XBOX One Controller & coresponding USB-x -> USB-A Cable (newer series ones use USB-C, XBONE controllers use micro) [^3]
 
 ## Optional (Debugging) Tools  
-- TTL Serial Adapter 
+- TTL Serial Adapter - there's a debug stream on serial1 at 115200 baud
 
 # Assembly 
 ## Physical Assembly
@@ -40,11 +43,34 @@ Final Product:
 ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/assembled.jpg?raw=true)
 
 ## Flashing the Arduino
+### AVR-programmer
+If you want the most straightforward experience, go ahead and download the prebuilt executable for [avr-programmer](https://github.com/delabrcd/avr-programmer/releases).  This is a quick UI I built in python to directly facilitate flashing for this project, for windows it bundles its own copy of avrdude to handle the flashing, but it is cross platform with the caveat that you need to have avrdude installed and in your path for it to work.  
 
-TODO - write me
+Steps: 
+1. Download the latest release of [avr-programmer](https://github.com/delabrcd/avr-programmer/releases)
+2. Download the latest release of [openrb](https://github.com/delabrcd/rockband-drums-usb/releases)
+3. Leave your arduino unplugged
+4. Run `avr-programmer.exe`
+5. Select "Type" -> atmega32u4 (this is currently the *only* type)
+6. Leave "Port" empty (this will auto-detect when you plug your arduino in)
+7. Select the firmware file you downloaded earlier
+8. Enable "Auto Flash"
+9. Plug your Arduino in and wait ~10s. The Leonardo may require you to press the reset button before it flashes, if nothing happens within 10s of plugging in, try presseing the physical reset button on the arduino. A successful flash will look something like this: 
+![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/avr-programmer-successful-flash.png?raw=true)
+11. Close avr-programmer and unplug your arduino, you're ready to go! Any firmware updates in the future will be done with this method
+
+### Manually Flashing With avrdude 
+If you're comfortable using a command line, familiar with avrdude, and don't want to run some random executable on the internet you can just interface with avrdude yourself to flash. The commands are: 
+
+```
+avrdude -patmega32u4 -cavr109 -P<device> -b115200 -D-Uflash:w:<path-to-firmware>:a
+```
+
+### Building The Code
+The project uses the LUFA build system which utilizes GNU Make and requires a unix-style shell (bash or zsh are officially supported).  Install `avr-gcc` and `avr-libc`, then, `make` to build locally.  
 
 # Usage 
-When powered, the XBOX controller guide button should light up, and the builtin orange LED on the Leonardo will light up once the authentication is finished. You can then use the controller to navigate menus or turn on drum navigation and unplug the controller altogether. 
+When powered, the XBOX controller guide button will light up, then the builtin orange LED on the Leonardo will light up once the authentication is finished. This indicates everything is ready to go. You can then use the controller to navigate menus or turn on drum navigation and unplug the controller altogether. 
 
 Any time it is reconnected / powered, the XBOX controller will need to be plugged in so that it can handle authentication.
 
