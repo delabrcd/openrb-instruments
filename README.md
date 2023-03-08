@@ -14,6 +14,7 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
     - [Manually Flashing With avrdude](#manually-flashing-with-avrdude)
     - [Building The Code](#building-the-code)
 - [Usage](#usage)
+- [Support Me](#support-me)
 
 # Parts
 ## Necassary Parts 
@@ -80,6 +81,10 @@ When powered, the XBOX controller guide button will light up, then the builtin o
 Any time it is reconnected / powered, the XBOX controller will need to be plugged in so that it can handle authentication.
 
 This should be a mostly plug and play solution, but there is more polishing that needs to be done - I'm not sure it syncs up perfectly with the timing of the other XBOX wireless instruments and additional support for USB MIDI and XB360 instruments is coming in the future.
+
+
+# Support Me 
+This project is entirely free and open source, donations are appreciated but not expected. 
 
 <div style="text-align: center;">
   <a href="https://www.buymeacoffee.com/delabrcdd" target="_blank" >
