@@ -1,8 +1,9 @@
-# OPENRB-INSTRUMENTS
+# OPENRB-INSTRUMENTS [![Discord Badge](https://img.shields.io/discord/1082846907111587911?label=discord&logo=discord)](https://discord.gg/BygTtZUZmK) 
+
 an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and presenting itself as pro drums, very close in functionality to the [Roll Limitless](https://rolllimitless.com/) but open source. 
 
 # Table of Contents
-- [OPENRB-INSTRUMENTS](#openrb-instruments)
+- [OPENRB-INSTRUMENTS ](#openrb-instruments-)
 - [Table of Contents](#table-of-contents)
 - [Parts](#parts)
   - [Necassary Parts](#necassary-parts)
