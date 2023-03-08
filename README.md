@@ -54,10 +54,11 @@ Steps:
 5. Select "Type" -> atmega32u4 (this is currently the *only* type)
 6. Leave "Port" empty (this will auto-detect when you plug your arduino in)
 7. Select the firmware file you downloaded earlier
-8. Enable "Auto Flash"
-9. Plug your Arduino in and wait ~10s. The Leonardo may require you to press the reset button before it flashes, if nothing happens within 10s of plugging in, try presseing the physical reset button on the arduino. A successful flash will look something like this: 
+8. Enable "Auto Flash". Here's an example for final settings: 
+![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/avr-programmer-general-settings.png?raw=true)
+9.  Plug your Arduino in and wait ~10s. The Leonardo may require you to press the reset button before it flashes, if nothing happens within 10s of plugging in, try pressing the physical reset button on the arduino. A successful flash will look something like this: 
 ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/avr-programmer-successful-flash.png?raw=true)
-11. Close avr-programmer and unplug your arduino, you're ready to go! Any firmware updates in the future will be done with this method
+1.  Close avr-programmer and unplug your arduino, you're ready to go! Any firmware updates in the future will be done with this method
 
 ### Manually Flashing With avrdude 
 If you're comfortable using a command line, familiar with avrdude, and don't want to run some random executable on the internet you can just interface with avrdude yourself to flash. The commands are: 
