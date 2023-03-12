@@ -18,6 +18,28 @@ enum FrameCommand {
     CMD_AUDIO_SAMPLES = 0x60,
 };
 
+enum FrameType {
+    TYPE_COMMAND = 0x00,
+    TYPE_ACK     = 0x01,
+    TYPE_REQUEST = 0x02,
+};
+
+enum PowerMode {
+    POWER_ON    = 0x00,
+    POWER_SLEEP = 0x01,
+    POWER_OFF   = 0x04,
+};
+
+enum LedMode {
+    LED_OFF        = 0x00,
+    LED_ON         = 0x01,
+    LED_BLINK_FAST = 0x02,
+    LED_BLINK_MED  = 0x03,
+    LED_BLINK_SLOW = 0x04,
+    LED_FADE_SLOW  = 0x08,
+    LED_FADE_FAST  = 0x09,
+};
+
 struct Frame {
     uint8_t command;
     uint8_t deviceId : 4;
@@ -95,17 +117,26 @@ struct DrumInputData : public Frame {
 
 } __attribute__((packed));
 
+struct LedModeData : public Frame {
+    uint8_t : 8;
+    uint8_t mode;
+    uint8_t brightness;
+} __attribute__((packed));
+
 struct XBPACKET {
     struct {
         uint8_t  handled;
         uint16_t length;
     } header;
-    union buf {
+    union {
         uint8_t       buffer[ADAPTER_OUT_SIZE];
         Frame         frame;
         DrumInputData drum_input;
+        LedModeData   led_mode;
     } buf;
 };
+
+static_assert(ADAPTER_OUT_SIZE == sizeof(XBPACKET::buf), "Wrong Packet size in packet union");
 
 enum ADAPTER_STATE {
     none,
@@ -113,16 +144,7 @@ enum ADAPTER_STATE {
     identifying,
     authenticating,
     running,
-};
-
-// Different frame types
-// Command: controller doesn't respond
-// Request: controller responds with data
-// Request (ACK): controller responds with ack + data
-enum FrameType {
-    TYPE_COMMAND = 0x00,
-    TYPE_ACK     = 0x01,
-    TYPE_REQUEST = 0x02,
+    power_off,
 };
 
 enum output_t {
