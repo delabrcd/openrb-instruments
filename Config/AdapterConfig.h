@@ -16,5 +16,5 @@
 
 #define ANNOUNCE_INTERVAL_MS 2000
 
-// #define  SERIAL_DEBUG Serial1
-// #define CUSTOM_MIDI_MAP 
+// #define SERIAL_DEBUG Serial1
+// #define CUSTOM_MIDI_MAP "Config/MyCustomMidiMap.tbl"
