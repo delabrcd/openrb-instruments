@@ -23,101 +23,119 @@ e-mail   :  support@circuitsathome.com
  */
 
 #include "Usb.h"
+#include "Config/AdapterConfig.h"
 // 0x80 is the default (i.e. trace) to turn off set this global to something lower.
 // this allows for 126 other debugging levels.
 // TO-DO: Allow assignment to a different serial port by software
 int UsbDEBUGlvl = 0x80;
 
 void E_Notifyc(char c, int lvl) {
-        if(UsbDEBUGlvl < lvl) return;
-#if defined(ARDUINO) && ARDUINO >=100
-        // USB_HOST_SERIAL.print(c);
+#if defined(SERIAL_DEBUG)
+    if (UsbDEBUGlvl < lvl)
+        return;
+#if defined(ARDUINO) && ARDUINO >= 100
+    SERIAL_DEBUG.print(c);
 #else
-        // USB_HOST_SERIAL.print(c, BYTE);
+    SERIAL_DEBUG.print(c, BYTE);
 #endif
-        //USB_HOST_SERIAL.flush();
+    SERIAL_DEBUG.flush();
+#endif
 }
 
-void E_Notify(char const * msg, int lvl) {
-        if(UsbDEBUGlvl < lvl) return;
-        if(!msg) return;
-        char c;
+void E_Notify(char const *msg, int lvl) {
+#if defined(SERIAL_DEBUG)
+    if (UsbDEBUGlvl < lvl)
+        return;
+    if (!msg)
+        return;
+    char c;
 
-        while((c = pgm_read_byte(msg++))) E_Notifyc(c, lvl);
+    while ((c = pgm_read_byte(msg++))) E_Notifyc(c, lvl);
+#endif
 }
 
-void E_NotifyStr(char const * msg, int lvl) {
-        if(UsbDEBUGlvl < lvl) return;
-        if(!msg) return;
-        char c;
+void E_NotifyStr(char const *msg, int lvl) {
+#if defined(SERIAL_DEBUG)
+    if (UsbDEBUGlvl < lvl)
+        return;
+    if (!msg)
+        return;
+    char c;
 
-        while((c = *msg++)) E_Notifyc(c, lvl);
+    while ((c = *msg++)) E_Notifyc(c, lvl);
+#endif
 }
 
 void E_Notify(uint8_t b, int lvl) {
-        if(UsbDEBUGlvl < lvl) return;
-#if defined(ARDUINO) && ARDUINO >=100
-        // USB_HOST_SERIAL.print(b);
+#if defined(SERIAL_DEBUG)
+
+    if (UsbDEBUGlvl < lvl)
+        return;
+#if defined(ARDUINO) && ARDUINO >= 100
+    SERIAL_DEBUG.print(b);
 #else
-        // USB_HOST_SERIAL.print(b, DEC);
+    SERIAL_DEBUG.print(b, DEC);
 #endif
-        //USB_HOST_SERIAL.flush();
+    SERIAL_DEBUG.flush();
+#endif
 }
 
 void E_Notify(double d, int lvl) {
-        if(UsbDEBUGlvl < lvl) return;
-        // USB_HOST_SERIAL.print(d);
-        //USB_HOST_SERIAL.flush();
+#if defined(SERIAL_DEBUG)
+    if (UsbDEBUGlvl < lvl)
+        return;
+    SERIAL_DEBUG.print(d);
+    SERIAL_DEBUG.flush();
+#endif
 }
 
 #ifdef DEBUG_USB_HOST
 
 void NotifyFailGetDevDescr(void) {
-        Notify(PSTR("\r\ngetDevDescr "), 0x80);
+    Notify(PSTR("\r\ngetDevDescr "), 0x80);
 }
 
 void NotifyFailSetDevTblEntry(void) {
-        Notify(PSTR("\r\nsetDevTblEn "), 0x80);
+    Notify(PSTR("\r\nsetDevTblEn "), 0x80);
 }
 
 void NotifyFailGetConfDescr(void) {
-        Notify(PSTR("\r\ngetConf "), 0x80);
+    Notify(PSTR("\r\ngetConf "), 0x80);
 }
 
 void NotifyFailSetConfDescr(void) {
-        Notify(PSTR("\r\nsetConf "), 0x80);
+    Notify(PSTR("\r\nsetConf "), 0x80);
 }
 
 void NotifyFailGetDevDescr(uint8_t reason) {
-        NotifyFailGetDevDescr();
-        NotifyFail(reason);
+    NotifyFailGetDevDescr();
+    NotifyFail(reason);
 }
 
 void NotifyFailSetDevTblEntry(uint8_t reason) {
-        NotifyFailSetDevTblEntry();
-        NotifyFail(reason);
-
+    NotifyFailSetDevTblEntry();
+    NotifyFail(reason);
 }
 
 void NotifyFailGetConfDescr(uint8_t reason) {
-        NotifyFailGetConfDescr();
-        NotifyFail(reason);
+    NotifyFailGetConfDescr();
+    NotifyFail(reason);
 }
 
 void NotifyFailSetConfDescr(uint8_t reason) {
-        NotifyFailSetConfDescr();
-        NotifyFail(reason);
+    NotifyFailSetConfDescr();
+    NotifyFail(reason);
 }
 
 void NotifyFailUnknownDevice(uint16_t VID, uint16_t PID) {
-        Notify(PSTR("\r\nUnknown Device Connected - VID: "), 0x80);
-        D_PrintHex<uint16_t > (VID, 0x80);
-        Notify(PSTR(" PID: "), 0x80);
-        D_PrintHex<uint16_t > (PID, 0x80);
+    Notify(PSTR("\r\nUnknown Device Connected - VID: "), 0x80);
+    D_PrintHex<uint16_t>(VID, 0x80);
+    Notify(PSTR(" PID: "), 0x80);
+    D_PrintHex<uint16_t>(PID, 0x80);
 }
 
 void NotifyFail(uint8_t rcode) {
-        D_PrintHex<uint8_t > (rcode, 0x80);
-        Notify(PSTR("\r\n"), 0x80);
+    D_PrintHex<uint8_t>(rcode, 0x80);
+    Notify(PSTR("\r\n"), 0x80);
 }
 #endif

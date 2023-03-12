@@ -22,8 +22,8 @@
 #include "XBOXONE.h"
 #include "debug_helpers.h"
 // To enable serial debugging see "settings.h"
-// #define EXTRADEBUG // Uncomment to get even more debugging data
-// #define PRINTREPORT // Uncomment to print the report send by the Xbox ONE Controller
+// #define EXTRADEBUG   // Uncomment to get even more debugging data
+// #define PRINTREPORT  // Uncomment to print the report send by the Xbox ONE Controller
 
 #include "HardwareSerial.h"
 XBOXONE::XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata))
@@ -308,7 +308,6 @@ uint8_t XBOXONE::Poll() {
 
     if (!bPollEnable)
         return 0;
-
     // Do not poll if shorter than polling interval
     if ((int32_t)((uint32_t)millis() - qNextPollTime) >= 0L) {
         qNextPollTime   = (uint32_t)millis() + pollInterval;  // Set new poll time
@@ -316,7 +315,9 @@ uint8_t XBOXONE::Poll() {
                               .maxPktSize;  // Read the maximum packet size from the endpoint
         uint8_t rcode = pUsb->inTransfer(bAddress, epInfo[XBOX_ONE_INPUT_PIPE].epAddr, &length,
                                          readBuf, pollInterval);
-
+        // char buf[64];
+        // snprintf(buf, 64, "rcode: %u", rcode);
+        // SERIAL_DEBUG.println(buf);
         if (!rcode) {
             if (dataCallback)
                 (*dataCallback)(readBuf, length);
