@@ -7,9 +7,13 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 - [Table of Contents](#table-of-contents)
 - [Parts](#parts)
   - [Necassary Parts](#necassary-parts)
+  - [Optional Parts](#optional-parts)
   - [Optional (Debugging) Tools](#optional-debugging-tools)
 - [Assembly](#assembly)
   - [Physical Assembly](#physical-assembly)
+    - [Serial MIDI (RECOMMENDED)](#serial-midi-recommended)
+    - [USB MIDI](#usb-midi)
+    - [Notes on Serial VS USB MIDI](#notes-on-serial-vs-usb-midi)
   - [Flashing the Arduino](#flashing-the-arduino)
     - [AVR-programmer](#avr-programmer)
     - [Manually Flashing With avrdude](#manually-flashing-with-avrdude)
@@ -21,15 +25,22 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 ## Necassary Parts 
 - [Arduino Leonardo](https://store.arduino.cc/products/arduino-leonardo-with-headers) or any clone & micro-usb -> usb a cable
 - [USB Host Shield](https://www.aliexpress.us/item/3256805054675231.html?spm=a2g0o.productlist.main.71.410634f7EOVIeG&algo_pvid=ac99536d-85a8-46b0-94af-9538ab88b9a7&algo_exp_id=ac99536d-85a8-46b0-94af-9538ab88b9a7-35&pdp_ext_f=%7B%22sku_id%22%3A%2212000032330281734%22%7D&pdp_npi=3%40dis%21USD%2115.27%2114.35%21%21%21%21%21%40211bf2da16781320629492357d070e%2112000032330281734%21sea%21US%21821067191&curPageLogUid=P49Bow2d3Lud) [^1]
-- [Any arduino midi shield](https://www.aliexpress.us/item/3256803015940184.html?spm=a2g0o.productlist.main.1.781c7e6ar9DaP8&algo_pvid=2f368073-2f0d-4f9c-815a-b900c00a6dae&algo_exp_id=2f368073-2f0d-4f9c-815a-b900c00a6dae-0&pdp_ext_f=%7B%22sku_id%22%3A%2212000024638075909%22%7D&pdp_npi=3%40dis%21USD%2110.01%216.41%21%21%21%21%21%402102160416781384373844470d06f3%2112000024638075909%21sea%21US%21821067191&curPageLogUid=Q3ucbOkF7JJK) [^2]
+
 - XBOX One Controller & coresponding USB-x -> USB-A Cable (newer series ones use USB-C, XBONE controllers use micro) [^3]
 
+## Optional Parts
+- If using Serial MIDI (recommended): [any arduino midi shield](https://www.aliexpress.us/item/3256803015940184.html?spm=a2g0o.productlist.main.1.781c7e6ar9DaP8&algo_pvid=2f368073-2f0d-4f9c-815a-b900c00a6dae&algo_exp_id=2f368073-2f0d-4f9c-815a-b900c00a6dae-0&pdp_ext_f=%7B%22sku_id%22%3A%2212000024638075909%22%7D&pdp_npi=3%40dis%21USD%2110.01%216.41%21%21%21%21%21%402102160416781384373844470d06f3%2112000024638075909%21sea%21US%21821067191&curPageLogUid=Q3ucbOkF7JJK) [^2] 
+- If using USB MIDI: Powered USB A Hub, your setup may work without it being powered depending on how much your midi device draws
+ 
 ## Optional (Debugging) Tools  
-- TTL Serial Adapter - there's a debug stream on serial1 at 115200 baud
+- TTL Serial Adapter - there's a debug stream on serial1 at 115200 baud (recommeneded if you plan to contribute to development)
 
 # Assembly 
 ## Physical Assembly
+Choose your flavor of MIDI (see [Notes on Serial VS USB MIDI](#notes-on-serial-vs-usb-midi)
+), they're all supported by one firmare so its just a matter of plugging everything in to support your desired method. 
 
+### Serial MIDI (RECOMMENDED)
 
 Here's the whole system: 
 
@@ -43,6 +54,22 @@ Boards:
 Final Product:
 
 ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/assembled.jpg?raw=true)
+
+*Note: Make sure the switch on the Serial Midi shield is set to "ON", unlike my [previous adapter](https://github.com/delabrcd/rockband-4-midi-drums) this does not need to be turned "OFF" for programming.*
+
+### USB MIDI
+Assemble exactly like the serial MIDI variant, but you don't need the MIDI shield. 
+- Plug both XBOX controller and Drum Brain into the USB Host Shield via USB Hub (recommended) **OR**
+- once the controller is finished authenticating the adapter (orange LED turns on), unplug it and plug your usb midi kit in
+
+### Notes on Serial VS USB MIDI
+USB can be a nightmare and is not recommended for use here. USB devices can be finicky and not very fault tolerant. There are a few bugs related to hotplug currently that may never be fixed, so while I haven't personally run into any problems while playing I can say with pretty high confidence that the Serial MIDI is going to be more reliable than USB Midi.  
+
+Also, due to the nature of this design you'll be constantly fighting ground loops, so if you plan to listen to anything from your drum brain, do yourself a favor and get a USB isolator.
+
+Finally, the Serial MIDI shield is pretty much as cheap or cheaper than a USB Hub, making it ever moreso the better option.  
+
+The thing that USB MIDI has going for it is the goal of having eventual support for legacy instruments over USB.  This will have to be how they're connected so if you plan to use them with this adapter once support is added, and are trying to save as much money as possible, go ahead with the USB Midi option. 
 
 ## Flashing the Arduino
 ### AVR-programmer
