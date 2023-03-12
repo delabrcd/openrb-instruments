@@ -55,7 +55,7 @@ Final Product:
 
 ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/assembled.jpg?raw=true)
 
-*Note: Make sure the switch on the Serial Midi shield is set to "ON", unlike my [previous adapter](https://github.com/delabrcd/rockband-4-midi-drums) this does not need to be turned "OFF" for programming.*
+*Note: Make sure the switch on the Serial Midi shield is set to "ON", unlike my [previous adapter](https://github.com/delabrcd/rockband-4-midi-drums) this does **not** need to be turned "OFF" for programming.*
 
 ### USB MIDI
 Assemble exactly like the serial MIDI variant, but you don't need the MIDI shield. 
