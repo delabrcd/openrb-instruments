@@ -185,6 +185,7 @@ public:
     uint8_t XboxCommand(uint8_t *data, uint16_t nbytes);
 
 protected:
+    bool needreset;
     USB *pUsb;
 
     void (*dataCallback)(const uint8_t *data, const uint8_t &ndata);

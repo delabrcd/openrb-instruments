@@ -3,6 +3,7 @@
 
 #include <avr/wdt.h>
 #include <avr/power.h>
+#include <avr/sleep.h>
 #include <avr/io.h>
 #include <stdlib.h>
 
@@ -10,23 +11,30 @@
 
 #include "Arduino.h"
 #include "HardwareSerial.h"
-#include "MIDI.h"
 #include "Config/AdapterConfig.h"
 #include "XBOXONE.h"
+#include "usbh_midi.h"
+#include "usbhub.h"
 #include "adapter_structs.h"
 #include "packet_helpers.h"
 #include "Identifiers.hpp"
-
-#ifdef SERIAL_DEBUG
-#include "debug_helpers.h"
-#endif
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/)()) {
     return 0;
 }
-
+#ifdef SERIAL_DEBUG
+#include "debug_helpers.h"
+#else
+#include "MIDI.h"
 MIDI_CREATE_DEFAULT_INSTANCE()
+#endif
+
+inline void debug(const char *msg) {
+#ifdef SERIAL_DEBUG
+    SERIAL_DEBUG.print(msg);
+#endif
+}
 
 static XBPACKET      out_packet    = {.header = {true, 0}};
 static XBPACKET      in_packet     = {.header = {true, 0}};
@@ -35,40 +43,70 @@ static ADAPTER_STATE adapter_state = none;
 static uint8_t        drum_state_flag = no_flag;
 static DrumInputData  drum_state;
 static output_state_t outputStates[NUM_OUT];
-static USB            Usb;
+
+static USB    Usb;
+static USBHub UsbHub(&Usb);
+
+void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata);
+
+static XBOXONE   Xbox(&Usb, xbPacketReceivedCB);
+static USBH_MIDI UsbMidi(&Usb);
 
 void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata) {
     if (ndata < sizeof(Frame))
         return;
-
-    if (adapter_state == authenticating) {
-        fillPacket(data, ndata, &out_packet);
-        return;
-    }
-
-    if (adapter_state != running)
-        return;
-
     auto frame = (Frame *)data;
-    switch (frame->command) {
-        case CMD_INPUT:
-            fillInputPacketFromControllerData(data, ndata, &out_packet);
+    switch (adapter_state) {
+        case authenticating:
+            fillPacket(data, ndata, &out_packet);
+            return;
+        case power_off:
+            // TODO CDD - do something here to wake the xbox back up?
+#if 0
+            if (frame->command == CMD_GUIDE_BTN) {
+                if (frame->type & TYPE_ACK) {
+                    XBPACKET tmpPkt;
+                    auto     header = &tmpPkt.buf.frame;
+
+                    header->command  = CMD_ACKNOWLEDGE;
+                    header->deviceId = frame->deviceId;
+                    header->type     = TYPE_REQUEST;
+                    header->sequence = frame->sequence;
+                    header->length   = (sizeof(Frame) * 2) + 1;
+                    tmpPkt.buf.buffer[4] = frame->command;
+                    tmpPkt.buf.buffer[5] = frame->deviceId + TYPE_REQUEST;
+                    tmpPkt.buf.buffer[6] = frame->sequence;
+                    tmpPkt.buf.buffer[7] = frame->length;
+                    Xbox.XboxCommand(tmpPkt.buf.buffer, 9);
+                }
+                adapter_state = init_state;
+            }
+#endif
+            return;
+        case running:
+            switch (frame->command) {
+                case CMD_GUIDE_BTN:
+                    frame->sequence = getSequence();
+                    fillPacket(data, ndata, &out_packet);
+                    return;
+                case CMD_INPUT:
+                    fillInputPacketFromControllerData(data, ndata, &out_packet);
+                    break;
+                default:
+                    break;
+            }
             break;
         default:
             break;
     }
 }
 
-static XBOXONE Xbox(&Usb, xbPacketReceivedCB);
-
-#if 0
 static void forceHardReset(void) {
     cli();                  // disable interrupts
     wdt_enable(WDTO_15MS);  // enable watchdog
     while (1) {
     }  // wait for watchdog to reset processor
 }
-#endif
 
 static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
@@ -98,11 +136,8 @@ static void HandlePacketAuth(XBPACKET &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
         digitalWrite(LED_BUILTIN, HIGH);
-#ifdef SERIAL_DEBUG
-        SERIAL_DEBUG.print("AUTHENTICATED!\r\n");
-#endif
+        debug("AUTHENTICATED!\r\n");
         adapter_state = running;
-        return;
     }
 
     while (Xbox.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
@@ -116,32 +151,30 @@ static void HandlePacketIdentify(XBPACKET &packet) {
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
         case CMD_ACKNOWLEDGE:
-            if (identify_sequence >= sizeof(identify_packets))
+            if (identify_sequence >= (sizeof(identify_packets) / sizeof(identify_list))) {
+                debug("Starting identify sequence over\r\n");
                 identify_sequence = 0;
+            }
             fillPacket(identify_packets[identify_sequence].data,
                        identify_packets[identify_sequence].size, &out_packet);
             packet.header.handled = true;
+            identify_sequence++;
             break;
         case CMD_AUTHENTICATE:
-#ifdef SERIAL_DEBUG
-            SERIAL_DEBUG.print("Moving to Authenticate\r\n");
-#endif
+            debug("Moving to Authenticate\r\n");
             adapter_state = authenticating;
             return HandlePacketAuth(packet);
             break;
         default:
             break;
     }
-    identify_sequence++;
     return;
 }
 
 static void HandlePacketInit(XBPACKET &packet) {
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
-#ifdef SERIAL_DEBUG
-            SERIAL_DEBUG.print("Moving to Identify\r\n");
-#endif
+            debug("Moving to Identify\r\n");
             adapter_state = identifying;
             return HandlePacketIdentify(packet);
         default:
@@ -150,7 +183,24 @@ static void HandlePacketInit(XBPACKET &packet) {
 }
 
 static void HandlePacketRunning(XBPACKET &packet) {
-    // i'm sure i'll figure out something to do here :^)
+    switch (packet.buf.frame.command) {
+        case CMD_POWER_MODE:
+            if (packet.buf.buffer[sizeof(Frame)] == POWER_OFF) {
+                digitalWrite(LED_BUILTIN, LOW);
+                // TODO CDD - read more here https://www.gammon.com.au/power
+                set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+                sleep_enable();
+                sleep_cpu();
+            }
+            break;
+        case CMD_ACKNOWLEDGE:
+            while (Xbox.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
+                Usb.Task();
+            }
+            break;
+        default:
+            break;
+    }
     return;
 }
 
@@ -197,7 +247,7 @@ static void ReceiveNextReport(void) {
     }
 }
 
-void SendNextReport(void) {
+static void SendNextReport(void) {
     Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
 
     if (!Endpoint_IsINReady()) {
@@ -223,6 +273,7 @@ static void HID_Task(void) {
 }
 
 static void MIDI_Task() {
+#ifndef SERIAL_DEBUG
     while (MIDI.read()) {
         auto location_byte = MIDI.getType();
         auto note          = MIDI.getData1();
@@ -230,6 +281,15 @@ static void MIDI_Task() {
         if (location_byte == midi::MidiType::NoteOn) {
             noteOn(note, velocity);
         }
+    }
+#endif
+    if (UsbMidi.UsbMidiConnected) {
+        uint8_t outBuf[3], size;
+        if ((size = UsbMidi.RecvData(outBuf)) > 0)
+            // filter top four bits for "noteon" without channel data
+            if ((outBuf[0] >> 4) == 0x9) {
+                noteOn(outBuf[1], outBuf[2]);
+            }
     }
 }
 
@@ -257,10 +317,8 @@ static inline void DoTasks() {
     Usb.Task();
     HID_Task();
     USB_USBTask();
-#ifndef SERIAL_DEBUG
     MIDI_Task();
     DRUM_STATE_Task();
-#endif
 }
 
 static void SetupHardware(void) {
@@ -268,13 +326,10 @@ static void SetupHardware(void) {
     init();
 #ifdef SERIAL_DEBUG
     SERIAL_DEBUG.begin(DEBUG_USART_BAUDRATE);
-    SERIAL_DEBUG.print("\r\nHELLO WORLD\r\n");
 #endif
-    GlobalInterruptEnable();
+    debug("\r\nopenrb-instruments, built with serial debug enabled\r\nstarting...\r\n");
     if (Usb.Init() == -1) {
-#ifdef SERIAL_DEBUG
-        SERIAL_DEBUG.print("\r\nOSC did not start");
-#endif
+        debug("\r\nOSC did not start");
         while (1)
             ;
     }
@@ -291,16 +346,16 @@ int main(void) {
     SetupHardware();
 
     unsigned long last_announce_time = 0, current_time = millis();
-    while (adapter_state == init_state) {
+    for (;;) {
         DoTasks();
-        current_time = millis();
-        if (((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) && Xbox.XboxOneConnected) {
-            fillPacket(announce, sizeof(announce), &out_packet);
-            last_announce_time = millis();
+        if (adapter_state == init_state) {
+            current_time = millis();
+            if (((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) &&
+                Xbox.XboxOneConnected) {
+                debug("ANNOUNCING\r\n");
+                fillPacket(announce, sizeof(announce), &out_packet);
+                last_announce_time = millis();
+            }
         }
-    }
-
-    while (true) {
-        DoTasks();
     }
 }

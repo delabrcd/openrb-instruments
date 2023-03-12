@@ -35,7 +35,7 @@ constexpr uint8_t drumidentify4[] = {
 
 constexpr uint8_t drumidentify5[] = {0x04, 0xa0, 0x01, 0x00, 0xc5, 0x01, 0x00, 0x00};
 
-constexpr struct {
+constexpr struct identify_list {
     uint8_t        size;
     const uint8_t *data;
 } identify_packets[] = {{sizeof(drumidentify1), drumidentify1},
