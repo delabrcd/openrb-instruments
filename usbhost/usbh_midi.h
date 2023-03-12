@@ -141,6 +141,8 @@ public:
         void attachOnRelease(void (*funcOnRelease)(void)) {
                 pFuncOnRelease = funcOnRelease;
         };
+
+        bool UsbMidiConnected;
 private:
         void (*pFuncOnInit)(void) = nullptr; // Pointer to function called in onInit()
         void (*pFuncOnRelease)(void) = nullptr; // Pointer to function called in onRelease()
