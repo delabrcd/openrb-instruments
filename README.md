@@ -6,7 +6,7 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 - [OPENRB-INSTRUMENTS ](#openrb-instruments-)
 - [Table of Contents](#table-of-contents)
 - [Parts](#parts)
-  - [Necassary Parts](#necassary-parts)
+  - [Necessary Parts](#necessary-parts)
   - [Optional Parts](#optional-parts)
   - [Optional (Debugging) Tools](#optional-debugging-tools)
 - [Assembly](#assembly)
@@ -22,18 +22,18 @@ an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and p
 - [Support Me](#support-me)
 
 # Parts
-## Necassary Parts 
+## Necessary Parts 
 - [Arduino Leonardo](https://store.arduino.cc/products/arduino-leonardo-with-headers) or any clone & micro-usb -> usb a cable
 - [USB Host Shield](https://www.aliexpress.us/item/3256805054675231.html?spm=a2g0o.productlist.main.71.410634f7EOVIeG&algo_pvid=ac99536d-85a8-46b0-94af-9538ab88b9a7&algo_exp_id=ac99536d-85a8-46b0-94af-9538ab88b9a7-35&pdp_ext_f=%7B%22sku_id%22%3A%2212000032330281734%22%7D&pdp_npi=3%40dis%21USD%2115.27%2114.35%21%21%21%21%21%40211bf2da16781320629492357d070e%2112000032330281734%21sea%21US%21821067191&curPageLogUid=P49Bow2d3Lud) [^1]
 
-- XBOX One Controller & coresponding USB-x -> USB-A Cable (newer series ones use USB-C, XBONE controllers use micro) [^3]
+- XBOX One Controller & coresponding USB-x -> USB-A Cable (newer series ones use USB-C, XBONE controllers use micro) [^2]
 
 ## Optional Parts
-- If using Serial MIDI (recommended): [any arduino midi shield](https://www.aliexpress.us/item/3256803015940184.html?spm=a2g0o.productlist.main.1.781c7e6ar9DaP8&algo_pvid=2f368073-2f0d-4f9c-815a-b900c00a6dae&algo_exp_id=2f368073-2f0d-4f9c-815a-b900c00a6dae-0&pdp_ext_f=%7B%22sku_id%22%3A%2212000024638075909%22%7D&pdp_npi=3%40dis%21USD%2110.01%216.41%21%21%21%21%21%402102160416781384373844470d06f3%2112000024638075909%21sea%21US%21821067191&curPageLogUid=Q3ucbOkF7JJK) [^2] 
+- If using Serial MIDI (recommended): [any arduino midi shield](https://www.aliexpress.us/item/3256803015940184.html?spm=a2g0o.productlist.main.1.781c7e6ar9DaP8&algo_pvid=2f368073-2f0d-4f9c-815a-b900c00a6dae&algo_exp_id=2f368073-2f0d-4f9c-815a-b900c00a6dae-0&pdp_ext_f=%7B%22sku_id%22%3A%2212000024638075909%22%7D&pdp_npi=3%40dis%21USD%2110.01%216.41%21%21%21%21%21%402102160416781384373844470d06f3%2112000024638075909%21sea%21US%21821067191&curPageLogUid=Q3ucbOkF7JJK)
 - If using USB MIDI: Powered USB A Hub, your setup may work without it being powered depending on how much your midi device draws
  
 ## Optional (Debugging) Tools  
-- TTL Serial Adapter - there's a debug stream on serial1 at 115200 baud (recommeneded if you plan to contribute to development)
+- TTL Serial Adapter - in `Config/AdapterConfig.h` define `SERIAL_DEBUG` as the Arduino HardwareSerial device you'd like your debug output on, then recompile and there will be a debug stream at 115200 baud (recommeneded if you plan to contribute to development)
 
 # Assembly 
 ## Physical Assembly
@@ -97,7 +97,7 @@ Steps:
 If you're comfortable using a command line, familiar with avrdude, and don't want to run some random executable on the internet you can just interface with avrdude yourself to flash. The commands are: 
 
 ```
-avrdude -patmega32u4 -cavr109 -P<device> -b115200 -D-Uflash:w:<path-to-firmware>:a
+avrdude -patmega32u4 -cavr109 -P<device> -b115200 -D-Uflash:w:<path-to-firmware>:i
 ```
 
 ### Building The Code
@@ -123,5 +123,4 @@ This project is entirely free and open source, donations are appreciated but not
 
 
 [^1]: Host Shields are very finicky - the most popular design that floats around is incorrect, so be sure that the PCB is white **AND** product picture includes the "RoHS" stamp or has "Arduino Meets Android", printed above the "USB Host Shield" text 
-[^2]: only serial midi is supported for now, but with more code in the future usb midi is possible using only the host shield and a usb HUB
-[^3]: I've only tested this with an older Series S controller, if your controller is plugged in, but the XBOX light doesn't come on, open an issue with the [vendor ID and product ID](https://superuser.com/questions/1106247/how-can-i-get-the-vendor-id-and-product-id-for-a-usb-device) so I can add support 
+[^2]: I've only tested this with an older Series S controller, if your controller is plugged in, but the XBOX light doesn't come on, open an issue with the [vendor ID and product ID](https://superuser.com/questions/1106247/how-can-i-get-the-vendor-id-and-product-id-for-a-usb-device) so I can add support 
