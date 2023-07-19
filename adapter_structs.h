@@ -78,6 +78,7 @@ struct ControllerInputData : public Frame {
 } __attribute__((packed));
 
 struct DrumInputData : public Frame {
+    DrumInputData() : Frame{CMD_INPUT, TYPE_COMMAND, 0, sizeof(DrumInputData) - sizeof(Frame)} {}
     uint8_t : 2;
     uint8_t start : 1;
     uint8_t select : 1;
@@ -125,8 +126,8 @@ struct LedModeData : public Frame {
 
 struct XBPACKET {
     struct {
-        uint8_t  handled;
-        uint16_t length;
+        unsigned long triggered_time = 0;
+        uint16_t      length         = 0;
     } header;
     union {
         uint8_t       buffer[ADAPTER_OUT_SIZE];

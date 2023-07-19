@@ -30,13 +30,42 @@ int atexit(void (* /*func*/)()) {
 MIDI_CREATE_DEFAULT_INSTANCE()
 #endif
 
-inline void debug(const char *msg) {
 #ifdef SERIAL_DEBUG
-    SERIAL_DEBUG.print(msg);
+#define debug(msg) Notify(PSTR(msg), 0x80);
+#else
+#define debug(msg) (void)0
 #endif
+
+static uint8_t write = 0;
+static uint8_t read  = 0;
+
+#define OUT_BUF_LEN 6
+static XBPACKET out_packets[OUT_BUF_LEN] = {{.header = {true, 0}}};
+
+static XBPACKET *get_write() {
+    XBPACKET *ret = &out_packets[write];
+    write++;
+    if (write >= OUT_BUF_LEN)
+        write = 0;
+
+    return ret;
 }
 
-static XBPACKET      out_packet    = {.header = {true, 0}};
+static XBPACKET *get_read() {
+    if (write == read)
+        return nullptr;
+
+    XBPACKET *ret = &out_packets[read];
+    return ret;
+}
+
+static void incr_read() {
+    read++;
+    if (read >= OUT_BUF_LEN)
+        read = 0;
+    return;
+}
+
 static XBPACKET      in_packet     = {.header = {true, 0}};
 static ADAPTER_STATE adapter_state = none;
 
@@ -58,7 +87,7 @@ void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata) {
     auto frame = (Frame *)data;
     switch (adapter_state) {
         case authenticating:
-            fillPacket(data, ndata, &out_packet);
+            fillPacket(data, ndata, get_write());
             return;
         case power_off:
             // TODO CDD - do something here to wake the xbox back up?
@@ -87,10 +116,10 @@ void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata) {
             switch (frame->command) {
                 case CMD_GUIDE_BTN:
                     frame->sequence = getSequence();
-                    fillPacket(data, ndata, &out_packet);
+                    fillPacket(data, ndata, get_write());
                     return;
                 case CMD_INPUT:
-                    fillInputPacketFromControllerData(data, ndata, &out_packet);
+                    fillInputPacketFromControllerData(data, ndata, get_write());
                     break;
                 default:
                     break;
@@ -105,7 +134,7 @@ static void forceHardReset(void) {
     cli();                  // disable interrupts
     wdt_enable(WDTO_15MS);  // enable watchdog
     while (1) {
-    }  // wait for watchdog to reset processor
+    }                       // wait for watchdog to reset processor
 }
 
 static void noteOn(uint8_t note, uint8_t velocity) {
@@ -119,12 +148,7 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     if (outputStates[out].triggered)
         return;
 
-    drum_state.command  = CMD_INPUT;
-    drum_state.type     = TYPE_COMMAND;
-    drum_state.deviceId = 0;
-    drum_state.length   = sizeof(DrumInputData) - sizeof(Frame);
-    updateDrumStateWithDrumInput(out, 1, &drum_state);
-
+    updateDrumStateWithDrumInput(static_cast<output_t>(out), 1, &drum_state);
     drum_state_flag |= changed_flag;
 
     outputStates[out].triggered   = true;
@@ -156,8 +180,7 @@ static void HandlePacketIdentify(XBPACKET &packet) {
                 identify_sequence = 0;
             }
             fillPacket(identify_packets[identify_sequence].data,
-                       identify_packets[identify_sequence].size, &out_packet);
-            packet.header.handled = true;
+                       identify_packets[identify_sequence].size, get_write());
             identify_sequence++;
             break;
         case CMD_AUTHENTICATE:
@@ -232,13 +255,12 @@ static void ReceiveNextReport(void) {
             uint8_t ErrorCode = Endpoint_Read_Stream_LE(in_packet.buf.buffer,
                                                         sizeof(in_packet.buf.buffer), &length);
 
-            in_packet.header.handled = false;
             in_packet.header.length =
                 (ErrorCode == ENDPOINT_RWSTREAM_NoError) ? sizeof(in_packet.buf.buffer) : length;
         }
 
         Endpoint_ClearOUT();
-        if (in_packet.header.length && !in_packet.header.handled) {
+        if (in_packet.header.length) {
 #ifdef SERIAL_DEBUG
             printPacket(in_packet, IN_DESCRIPTION);
 #endif
@@ -253,15 +275,18 @@ static void SendNextReport(void) {
     if (!Endpoint_IsINReady()) {
         return;
     }
-    if (out_packet.header.handled)
-        return;
 
-    Endpoint_Write_Stream_LE(out_packet.buf.buffer, out_packet.header.length, NULL);
-    Endpoint_ClearIN();
+    auto      current_time = millis();
+    XBPACKET *out_packet   = get_read();
+    while (out_packet && ((current_time - out_packet->header.triggered_time) > ON_DELAY_MS)) {
+        Endpoint_Write_Stream_LE(out_packet->buf.buffer, out_packet->header.length, NULL);
+        Endpoint_ClearIN();
 #ifdef SERIAL_DEBUG
-    printPacket(out_packet, OUT_DESCRIPTION);
+        printPacket(out_packet, OUT_DESCRIPTION);
 #endif
-    out_packet.header.handled = true;
+        incr_read();
+        out_packet = get_read();
+    }
 }
 
 static void HID_Task(void) {
@@ -296,10 +321,15 @@ static void MIDI_Task() {
 static void DRUM_STATE_Task() {
     if (adapter_state != running)
         return;
+
     auto current_time = millis();
     for (auto out = 0; out < NUM_OUT; out++) {
-        if (outputStates[out].triggered &&
-            current_time - outputStates[out].triggeredAt > TRIGGER_HOLD_MS) {
+        if (!outputStates[out].triggered) {
+            continue;
+        }
+
+        auto time_since_trigger = current_time - outputStates[out].triggeredAt;
+        if (time_since_trigger > TRIGGER_HOLD_MS) {
             updateDrumStateWithDrumInput(static_cast<output_t>(out), 0, &drum_state);
             outputStates[out].triggered = false;
             drum_state_flag |= changed_flag;
@@ -308,7 +338,7 @@ static void DRUM_STATE_Task() {
 
     if (drum_state_flag & changed_flag) {
         drum_state.sequence = getSequence();
-        fillPacket((uint8_t *)&drum_state, sizeof(drum_state), &out_packet);
+        fillPacket((uint8_t *)&drum_state, sizeof(drum_state), get_write(), current_time);
         drum_state_flag = no_flag;
     }
 }
@@ -345,16 +375,24 @@ static void SetupHardware(void) {
 int main(void) {
     SetupHardware();
 
+    drum_state.command  = CMD_INPUT;
+    drum_state.type     = TYPE_COMMAND;
+    drum_state.deviceId = 0;
+    drum_state.length   = sizeof(DrumInputData) - sizeof(Frame);
+
     unsigned long last_announce_time = 0, current_time = millis();
     for (;;) {
         DoTasks();
         if (adapter_state == init_state) {
             current_time = millis();
-            if (((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) &&
-                Xbox.XboxOneConnected) {
-                debug("ANNOUNCING\r\n");
-                fillPacket(announce, sizeof(announce), &out_packet);
-                last_announce_time = millis();
+            if ((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
+                if (Xbox.XboxOneConnected) {
+                    debug("ANNOUNCING\r\n");
+                    fillPacket(announce, sizeof(announce), get_write());
+                    last_announce_time = millis();
+                } else {
+                    debug("WAITING FOR CONTROLLER\r\n");
+                }
             }
         }
     }
