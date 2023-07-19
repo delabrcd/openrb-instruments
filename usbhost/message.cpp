@@ -23,7 +23,7 @@ e-mail   :  support@circuitsathome.com
  */
 
 #include "Usb.h"
-#include "Config/AdapterConfig.h"
+#include "Config/adapter_config.h"
 // 0x80 is the default (i.e. trace) to turn off set this global to something lower.
 // this allows for 126 other debugging levels.
 // TO-DO: Allow assignment to a different serial port by software
