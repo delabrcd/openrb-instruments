@@ -26,12 +26,12 @@
 // #define PRINTREPORT  // Uncomment to print the report send by the Xbox ONE Controller
 
 #include "HardwareSerial.h"
-XBOXONE::XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata))
-    : pUsb(pUsb),  // pointer to USB class instance - mandatory
+XBOXONE::XBOXONE(USB *pUsb, void (*data_cb)(uint8_t *data, const uint8_t &ndata))
+    : pUsb(pUsb),           // pointer to USB class instance - mandatory
       dataCallback(data_cb),
-      bAddress(0),       // device address - mandatory
-      bNumEP(1),         // If config descriptor needs to be parsed
-      qNextPollTime(0),  // Reset NextPollTime
+      bAddress(0),          // device address - mandatory
+      bNumEP(1),            // If config descriptor needs to be parsed
+      qNextPollTime(0),     // Reset NextPollTime
       pollInterval(0),
       bPollEnable(false) {  // don't start polling before dongle is connected
     for (uint8_t i = 0; i < XBOX_ONE_MAX_ENDPOINTS; i++) {

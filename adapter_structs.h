@@ -1,8 +1,8 @@
 #pragma once
 #include <stdint.h>
-#include "Config/AdapterConfig.h"
+#include "Config/adapter_config.h"
 
-enum FrameCommand {
+enum frame_command_t {
     CMD_ACKNOWLEDGE   = 0x01,
     CMD_ANNOUNCE      = 0x02,
     CMD_STATUS        = 0x03,
@@ -18,19 +18,19 @@ enum FrameCommand {
     CMD_AUDIO_SAMPLES = 0x60,
 };
 
-enum FrameType {
+enum frame_type_t {
     TYPE_COMMAND = 0x00,
     TYPE_ACK     = 0x01,
     TYPE_REQUEST = 0x02,
 };
 
-enum PowerMode {
+enum power_mode_t {
     POWER_ON    = 0x00,
     POWER_SLEEP = 0x01,
     POWER_OFF   = 0x04,
 };
 
-enum LedMode {
+enum led_mode_t {
     LED_OFF        = 0x00,
     LED_ON         = 0x01,
     LED_BLINK_FAST = 0x02,
@@ -40,7 +40,7 @@ enum LedMode {
     LED_FADE_FAST  = 0x09,
 };
 
-struct Frame {
+struct frame_pkt_t {
     uint8_t command;
     uint8_t deviceId : 4;
     uint8_t type : 4;
@@ -48,7 +48,7 @@ struct Frame {
     uint8_t length;
 } __attribute__((packed));
 
-struct ControllerInputData : public Frame {
+struct ControllerInputData : public frame_pkt_t {
     struct Buttons {
         uint32_t : 2;
         uint32_t start : 1;
@@ -77,8 +77,9 @@ struct ControllerInputData : public Frame {
 
 } __attribute__((packed));
 
-struct DrumInputData : public Frame {
-    DrumInputData() : Frame{CMD_INPUT, TYPE_COMMAND, 0, sizeof(DrumInputData) - sizeof(Frame)} {}
+struct drum_input_pkt_t : public frame_pkt_t {
+    drum_input_pkt_t()
+        : frame_pkt_t{CMD_INPUT, TYPE_COMMAND, 0, sizeof(drum_input_pkt_t) - sizeof(frame_pkt_t)} {}
     uint8_t : 2;
     uint8_t start : 1;
     uint8_t select : 1;
@@ -118,28 +119,28 @@ struct DrumInputData : public Frame {
 
 } __attribute__((packed));
 
-struct LedModeData : public Frame {
+struct led_mode_pkt_t : public frame_pkt_t {
     uint8_t : 8;
     uint8_t mode;
     uint8_t brightness;
 } __attribute__((packed));
 
-struct XBPACKET {
+struct xb_packet_t {
     struct {
-        unsigned long triggered_time = 0;
-        uint16_t      length         = 0;
+        uint32_t triggered_time = 0;
+        uint16_t length         = 0;
     } header;
     union {
-        uint8_t       buffer[ADAPTER_OUT_SIZE];
-        Frame         frame;
-        DrumInputData drum_input;
-        LedModeData   led_mode;
+        uint8_t          buffer[ADAPTER_OUT_SIZE];
+        frame_pkt_t      frame;
+        drum_input_pkt_t drum_input;
+        led_mode_pkt_t   led_mode;
     } buf;
 };
 
-static_assert(ADAPTER_OUT_SIZE == sizeof(XBPACKET::buf), "Wrong Packet size in packet union");
+static_assert(ADAPTER_OUT_SIZE == sizeof(xb_packet_t::buf), "Wrong Packet size in packet union");
 
-enum ADAPTER_STATE {
+enum adapter_state_t {
     none,
     init_state,
     identifying,
@@ -175,7 +176,7 @@ struct output_state_t {
     bool         triggered;
 };
 
-enum DrumStateFlags {
+enum drum_state_flags_t {
     no_flag      = 0,
     changed_flag = (1 << 0),
 };

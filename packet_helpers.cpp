@@ -8,7 +8,7 @@ output_t outputForNote(const uint8_t &note) {
     case midi_note:                 \
         return rb_out;
 
-#include "MidiMap.h"
+#include "Config/midi_map.h"
 #undef MIDI_MAP
         default:
             return NO_OUT;
@@ -26,12 +26,12 @@ uint8_t getSequence() {
 }
 
 void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata,
-                                       XBPACKET *packet) {
+                                       xb_packet_t *packet) {
     if (ndata > ADAPTER_OUT_SIZE)
         return;
 
     memset(packet->buf.buffer, 0, sizeof(packet->buf.buffer));
-    packet->header.length = sizeof(DrumInputData);
+    packet->header.length = sizeof(drum_input_pkt_t);
 
     auto cast_data    = (const ControllerInputData *)data;
     auto drum_input_d = &packet->buf.drum_input;
@@ -40,7 +40,7 @@ void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata
     drum_input_d->deviceId = cast_data->deviceId;
     drum_input_d->type     = cast_data->deviceId;
     drum_input_d->sequence = getSequence();
-    drum_input_d->length   = sizeof(DrumInputData) - sizeof(Frame);
+    drum_input_d->length   = sizeof(drum_input_pkt_t) - sizeof(frame_pkt_t);
 
     drum_input_d->a = cast_data->buttons.a;
     drum_input_d->b = cast_data->buttons.b;
@@ -57,7 +57,7 @@ void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata
     return;
 }
 
-bool fillPacket(const uint8_t *input, const uint8_t &length, XBPACKET *packet,
+bool fillPacket(const uint8_t *input, const uint8_t &length, xb_packet_t *packet,
                 unsigned long triggered_time) {
     if (length > ADAPTER_OUT_SIZE)
         return false;
@@ -68,7 +68,7 @@ bool fillPacket(const uint8_t *input, const uint8_t &length, XBPACKET *packet,
 }
 
 void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
-                                  DrumInputData *drum_input) {
+                                  drum_input_pkt_t *drum_input) {
     switch (out) {
         case OUT_KICK:
             drum_input->kick = state;

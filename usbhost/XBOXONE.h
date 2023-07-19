@@ -71,7 +71,7 @@ public:
      * Constructor for the XBONEAUTH class.
      * @param  pUsb   Pointer to USB class instance.
      */
-    XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata));
+    XBOXONE(USB *pUsb, void (*data_cb)(uint8_t *data, const uint8_t &ndata));
 
     /** @name USBDeviceConfig implementation */
     /**
@@ -188,7 +188,7 @@ protected:
     bool needreset;
     USB *pUsb;
 
-    void (*dataCallback)(const uint8_t *data, const uint8_t &ndata);
+    void (*dataCallback)(uint8_t *data, const uint8_t &ndata);
 
     /** Pointer to USB class instance. */
     /** Device address. */

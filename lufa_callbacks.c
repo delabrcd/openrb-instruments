@@ -1,5 +1,5 @@
 #include <LUFA/Drivers/USB/USB.h>
-#include "Config/AdapterConfig.h"
+#include "Config/adapter_config.h"
 
 void EVENT_USB_Device_Connect(void) {}
 
