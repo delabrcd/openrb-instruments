@@ -25,10 +25,14 @@ INCLUDE_DIRS := -I./ \
 				-Imidi \
 				-Iusbhost 
 
-SRCS 		:= 	$(wildcard *.c) \
+SRCS 		:= 	adapter_descriptors.c \
 				$(wildcard arduino/*.c)	
 
-CPP_SRCS 	:= 	$(wildcard *.cpp) \
+CPP_SRCS 	:= 	adapter_common.cpp \
+				debug_helpers.cpp \
+				packet_circ_buf.cpp \
+				packet_helpers.cpp \
+				pdp_drum_identifiers.cpp \
 				$(wildcard midi/*.cpp)	\
 				$(wildcard usbhost/*.cpp) \
 				$(wildcard arduino/*.cpp)	
@@ -37,7 +41,7 @@ CPP_SRCS 	:= 	$(wildcard *.cpp) \
 SRC          = $(CPP_SRCS) $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(SRCS)
 LUFA_PATH    = LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
-CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -I./ -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
+CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
 LD_FLAGS     =
 
 # Default target
