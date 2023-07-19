@@ -1,5 +1,6 @@
 #include "packet_helpers.h"
 #include <string.h>
+#include "Arduino.h"
 
 output_t outputForNote(const uint8_t &note) {
     switch (note) {
@@ -29,13 +30,8 @@ void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata
     if (ndata > ADAPTER_OUT_SIZE)
         return;
 
-    // Refuse to fill non-handled packet
-    if (!packet->header.handled) {
-        return;
-    }
     memset(packet->buf.buffer, 0, sizeof(packet->buf.buffer));
-    packet->header.length  = sizeof(DrumInputData);
-    packet->header.handled = false;
+    packet->header.length = sizeof(DrumInputData);
 
     auto cast_data    = (const ControllerInputData *)data;
     auto drum_input_d = &packet->buf.drum_input;
@@ -61,22 +57,13 @@ void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata
     return;
 }
 
-bool fillPacket(const uint8_t *input, const uint8_t &length, XBPACKET *packet) {
+bool fillPacket(const uint8_t *input, const uint8_t &length, XBPACKET *packet,
+                unsigned long triggered_time) {
     if (length > ADAPTER_OUT_SIZE)
         return false;
-
-    // Refuse to fill non-handled packet
-    if (!packet->header.handled) {
-        return false;
-    }
-
-    // set size and copy data
-    memset(packet->buf.buffer, 0, sizeof(packet->buf.buffer));
-    packet->header.length  = length;
-    packet->header.handled = false;
+    packet->header.triggered_time = triggered_time;
+    packet->header.length         = length;
     memcpy(packet->buf.buffer, input, length);
-    // if (packet->buf.frame.command != CMD_ACKNOWLEDGE)
-    //     packet->buf.frame.sequence = getSequence();
     return true;
 }
 
