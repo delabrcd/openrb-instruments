@@ -13,6 +13,7 @@
 #define VELOCITY_THRESH 10
 // milliseconds
 #define TRIGGER_HOLD_MS 40
+#define ON_DELAY_MS 40
 
 #define ANNOUNCE_INTERVAL_MS 2000
 
