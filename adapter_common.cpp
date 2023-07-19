@@ -11,13 +11,14 @@
 
 #include "Arduino.h"
 #include "HardwareSerial.h"
-#include "Config/AdapterConfig.h"
+#include "Config/adapter_config.h"
 #include "XBOXONE.h"
 #include "usbh_midi.h"
 #include "usbhub.h"
 #include "adapter_structs.h"
 #include "packet_helpers.h"
-#include "Identifiers.hpp"
+#include "packet_circ_buf.h"
+#include "Config/adapter_identifiers.h"
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/)()) {
@@ -36,90 +37,44 @@ MIDI_CREATE_DEFAULT_INSTANCE()
 #define debug(msg) (void)0
 #endif
 
-static uint8_t write = 0;
-static uint8_t read  = 0;
+static xb_packet_t     in_packet     = {.header = {true, 0}};
+static adapter_state_t adapter_state = none;
 
-#define OUT_BUF_LEN 6
-static XBPACKET out_packets[OUT_BUF_LEN] = {{.header = {true, 0}}};
-
-static XBPACKET *get_write() {
-    XBPACKET *ret = &out_packets[write];
-    write++;
-    if (write >= OUT_BUF_LEN)
-        write = 0;
-
-    return ret;
-}
-
-static XBPACKET *get_read() {
-    if (write == read)
-        return nullptr;
-
-    XBPACKET *ret = &out_packets[read];
-    return ret;
-}
-
-static void incr_read() {
-    read++;
-    if (read >= OUT_BUF_LEN)
-        read = 0;
-    return;
-}
-
-static XBPACKET      in_packet     = {.header = {true, 0}};
-static ADAPTER_STATE adapter_state = none;
-
-static uint8_t        drum_state_flag = no_flag;
-static DrumInputData  drum_state;
-static output_state_t outputStates[NUM_OUT];
+static uint8_t          drum_state_flag = no_flag;
+static drum_input_pkt_t drum_state;
+static output_state_t   outputStates[NUM_OUT];
 
 static USB    Usb;
 static USBHub UsbHub(&Usb);
 
-void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata);
+void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
 static XBOXONE   Xbox(&Usb, xbPacketReceivedCB);
 static USBH_MIDI UsbMidi(&Usb);
 
-void xbPacketReceivedCB(const uint8_t *data, const uint8_t &ndata) {
-    if (ndata < sizeof(Frame))
+void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata) {
+    if (ndata < sizeof(frame_pkt_t))
         return;
-    auto frame = (Frame *)data;
+    auto frame = reinterpret_cast<frame_pkt_t *>(data);
     switch (adapter_state) {
         case authenticating:
-            fillPacket(data, ndata, get_write());
+            fillPacket(data, ndata, packet_circ_buf::get_write());
             return;
         case power_off:
-            // TODO CDD - do something here to wake the xbox back up?
-#if 0
+            // move back to init if someone hits the guide button - technically you need to ACK
+            // these but the xbox will do that once we're authenticating
             if (frame->command == CMD_GUIDE_BTN) {
-                if (frame->type & TYPE_ACK) {
-                    XBPACKET tmpPkt;
-                    auto     header = &tmpPkt.buf.frame;
-
-                    header->command  = CMD_ACKNOWLEDGE;
-                    header->deviceId = frame->deviceId;
-                    header->type     = TYPE_REQUEST;
-                    header->sequence = frame->sequence;
-                    header->length   = (sizeof(Frame) * 2) + 1;
-                    tmpPkt.buf.buffer[4] = frame->command;
-                    tmpPkt.buf.buffer[5] = frame->deviceId + TYPE_REQUEST;
-                    tmpPkt.buf.buffer[6] = frame->sequence;
-                    tmpPkt.buf.buffer[7] = frame->length;
-                    Xbox.XboxCommand(tmpPkt.buf.buffer, 9);
-                }
                 adapter_state = init_state;
             }
-#endif
             return;
         case running:
             switch (frame->command) {
                 case CMD_GUIDE_BTN:
                     frame->sequence = getSequence();
-                    fillPacket(data, ndata, get_write());
+                    fillPacket(data, ndata, packet_circ_buf::get_write());
                     return;
                 case CMD_INPUT:
-                    fillInputPacketFromControllerData(data, ndata, get_write());
+                    fillInputPacketFromControllerData(data, ndata, packet_circ_buf::get_write());
                     break;
                 default:
                     break;
@@ -156,7 +111,7 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     return;
 }
 
-static void HandlePacketAuth(XBPACKET &packet) {
+static void HandlePacketAuth(xb_packet_t &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
         digitalWrite(LED_BUILTIN, HIGH);
@@ -170,17 +125,16 @@ static void HandlePacketAuth(XBPACKET &packet) {
     return;
 }
 
-static void HandlePacketIdentify(XBPACKET &packet) {
+static void HandlePacketIdentify(xb_packet_t &packet) {
     static uint8_t identify_sequence = 0;
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
         case CMD_ACKNOWLEDGE:
-            if (identify_sequence >= (sizeof(identify_packets) / sizeof(identify_list))) {
+            if (identify_sequence >= identifiers::get_n_identify()) {
                 debug("Starting identify sequence over\r\n");
                 identify_sequence = 0;
             }
-            fillPacket(identify_packets[identify_sequence].data,
-                       identify_packets[identify_sequence].size, get_write());
+            identifiers::get_identify(identify_sequence, packet_circ_buf::get_write());
             identify_sequence++;
             break;
         case CMD_AUTHENTICATE:
@@ -194,7 +148,7 @@ static void HandlePacketIdentify(XBPACKET &packet) {
     return;
 }
 
-static void HandlePacketInit(XBPACKET &packet) {
+static void HandlePacketInit(xb_packet_t &packet) {
     switch (packet.buf.frame.command) {
         case CMD_IDENTIFY:
             debug("Moving to Identify\r\n");
@@ -205,18 +159,19 @@ static void HandlePacketInit(XBPACKET &packet) {
     }
 }
 
-static void HandlePacketRunning(XBPACKET &packet) {
+static void HandlePacketRunning(xb_packet_t &packet) {
     switch (packet.buf.frame.command) {
         case CMD_POWER_MODE:
-            if (packet.buf.buffer[sizeof(Frame)] == POWER_OFF) {
-                digitalWrite(LED_BUILTIN, LOW);
-                // TODO CDD - read more here https://www.gammon.com.au/power
-                set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-                sleep_enable();
-                sleep_cpu();
+            if (packet.buf.buffer[sizeof(frame_pkt_t)] == POWER_OFF) {
+                // xbox has told us to power off for some reason, move to power_off state and turn
+                // off the indicator LED
+                debug("Powering down... \r\n") digitalWrite(LED_BUILTIN, LOW);
+                adapter_state = power_off;
             }
             break;
         case CMD_ACKNOWLEDGE:
+            // pass ACK's to controller - this is pretty much only for the guide button to work
+            // correctly
             while (Xbox.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
                 Usb.Task();
             }
@@ -227,7 +182,7 @@ static void HandlePacketRunning(XBPACKET &packet) {
     return;
 }
 
-static void HandlePacket(XBPACKET &packet) {
+static void HandlePacket(xb_packet_t &packet) {
     switch (adapter_state) {
         case none:
             return;
@@ -272,20 +227,20 @@ static void ReceiveNextReport(void) {
 static void SendNextReport(void) {
     Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
 
-    if (!Endpoint_IsINReady()) {
-        return;
-    }
-
-    auto      current_time = millis();
-    XBPACKET *out_packet   = get_read();
+    auto         current_time = millis();
+    xb_packet_t *out_packet   = packet_circ_buf::get_read();
     while (out_packet && ((current_time - out_packet->header.triggered_time) > ON_DELAY_MS)) {
+        if (!Endpoint_IsINReady()) {
+            return;
+        }
+
         Endpoint_Write_Stream_LE(out_packet->buf.buffer, out_packet->header.length, NULL);
         Endpoint_ClearIN();
 #ifdef SERIAL_DEBUG
-        printPacket(out_packet, OUT_DESCRIPTION);
+        printPacket(*out_packet, OUT_DESCRIPTION);
 #endif
-        incr_read();
-        out_packet = get_read();
+        packet_circ_buf::incr_read();
+        out_packet = packet_circ_buf::get_read();
     }
 }
 
@@ -338,7 +293,8 @@ static void DRUM_STATE_Task() {
 
     if (drum_state_flag & changed_flag) {
         drum_state.sequence = getSequence();
-        fillPacket((uint8_t *)&drum_state, sizeof(drum_state), get_write(), current_time);
+        fillPacket(reinterpret_cast<uint8_t *>(&drum_state), sizeof(drum_state),
+                   packet_circ_buf::get_write(), current_time);
         drum_state_flag = no_flag;
     }
 }
@@ -378,7 +334,7 @@ int main(void) {
     drum_state.command  = CMD_INPUT;
     drum_state.type     = TYPE_COMMAND;
     drum_state.deviceId = 0;
-    drum_state.length   = sizeof(DrumInputData) - sizeof(Frame);
+    drum_state.length   = sizeof(drum_input_pkt_t) - sizeof(frame_pkt_t);
 
     unsigned long last_announce_time = 0, current_time = millis();
     for (;;) {
@@ -388,7 +344,7 @@ int main(void) {
             if ((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
                 if (Xbox.XboxOneConnected) {
                     debug("ANNOUNCING\r\n");
-                    fillPacket(announce, sizeof(announce), get_write());
+                    identifiers::get_announce(packet_circ_buf::get_write());
                     last_announce_time = millis();
                 } else {
                     debug("WAITING FOR CONTROLLER\r\n");

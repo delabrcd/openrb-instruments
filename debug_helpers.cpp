@@ -68,7 +68,7 @@ void serialPrintHex(const uint8_t *val, const uint8_t &nval) {
     SERIAL_DEBUG.print(" ] ");
 }
 
-void printPacket(const XBPACKET &packet, const char *descriptor) {
+void printPacket(const xb_packet_t &packet, const char *descriptor) {
     SERIAL_DEBUG.print(descriptor);
     printCommandName(packet.buf.frame.command);
     serialPrintHex(packet.buf.buffer, packet.header.length);
