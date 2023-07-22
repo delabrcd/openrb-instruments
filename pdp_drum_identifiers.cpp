@@ -64,7 +64,7 @@ int get_identify(const uint8_t &sequence, xb_packet_t *packet) {
             return 0;
         case 4:
             fill_from_pgm(packet, drumidentify5, sizeof(drumidentify5) / sizeof(drumidentify5[0]));
-            break;
+            return 0;
         default:
             return 1;
     }

@@ -141,7 +141,6 @@ static void HandlePacketIdentify(xb_packet_t &packet) {
             debug("Moving to Authenticate\r\n");
             adapter_state = authenticating;
             return HandlePacketAuth(packet);
-            break;
         default:
             break;
     }
