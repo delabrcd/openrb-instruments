@@ -165,7 +165,8 @@ static void HandlePacketRunning(xb_packet_t &packet) {
             if (packet.buf.buffer[sizeof(frame_pkt_t)] == POWER_OFF) {
                 // xbox has told us to power off for some reason, move to power_off state and turn
                 // off the indicator LED
-                debug("Powering down... \r\n") digitalWrite(LED_BUILTIN, LOW);
+                debug("Powering down... \r\n");
+                digitalWrite(LED_BUILTIN, LOW);
                 adapter_state = power_off;
             }
             break;
