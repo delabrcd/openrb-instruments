@@ -11,7 +11,7 @@
 #define debug(msg) (void)
 #endif
 
-const char *printCommandName(int cmd) {
+void printCommandName(int cmd) {
     switch (cmd) {
         case CMD_ACKNOWLEDGE:
             debug("ACK");

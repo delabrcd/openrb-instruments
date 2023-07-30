@@ -93,6 +93,8 @@ public:
 	};
 
 private:
+    // bug with -fpack-struct struct here 
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58798
     SerialPort& mSerial;
 };
 
