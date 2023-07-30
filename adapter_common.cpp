@@ -20,10 +20,6 @@
 #include "packet_circ_buf.h"
 #include "Config/adapter_identifiers.h"
 
-// Declared weak in Arduino.h to allow user redefinitions.
-int atexit(void (* /*func*/)()) {
-    return 0;
-}
 #ifdef SERIAL_DEBUG
 #include "debug_helpers.h"
 #else
@@ -85,12 +81,14 @@ void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata) {
     }
 }
 
+#if 0
 static void forceHardReset(void) {
     cli();                  // disable interrupts
     wdt_enable(WDTO_15MS);  // enable watchdog
     while (1) {
     }                       // wait for watchdog to reset processor
 }
+#endif 
 
 static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
@@ -225,12 +223,13 @@ static void ReceiveNextReport(void) {
 }
 
 static void SendNextReport(void) {
-    Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
-
     auto         current_time = millis();
     xb_packet_t *out_packet   = packet_circ_buf::get_read();
     while (out_packet && ((current_time - out_packet->header.triggered_time) > ON_DELAY_MS)) {
+        Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
+
         if (!Endpoint_IsINReady()) {
+            debug("Endpoint not ready!"); 
             return;
         }
 

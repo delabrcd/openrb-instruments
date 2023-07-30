@@ -25,7 +25,7 @@
  * Its defined as a weak symbol and it can be redefined to implement a
  * real cooperative scheduler.
  */
-static void __empty() {
+static void __empty(void) {
 	// Empty
 }
 void yield(void) __attribute__ ((weak, alias("__empty")));
