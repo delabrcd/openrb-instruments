@@ -25,7 +25,8 @@ INCLUDE_DIRS := -I./ \
 				-Imidi \
 				-Iusbhost 
 
-SRCS 		:= 	adapter_descriptors.c \
+C_SRCS 		:= 	lufa_callbacks.c \
+				adapter_descriptors.c \
 				$(wildcard arduino/*.c)	
 
 CPP_SRCS 	:= 	adapter_common.cpp \
@@ -38,7 +39,7 @@ CPP_SRCS 	:= 	adapter_common.cpp \
 				$(wildcard arduino/*.cpp)	
 
 			
-SRC          = $(CPP_SRCS) $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(SRCS)
+SRC          = $(C_SRCS) $(CPP_SRCS) $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) 
 LUFA_PATH    = LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
 CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
