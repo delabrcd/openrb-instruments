@@ -49,6 +49,9 @@ void printCommandName(int cmd) {
         case CMD_INPUT:
             debug("CMD_INPUT");
             break;
+        case 0x22:
+            debug("CMD_ADD_PLAYER");
+            break;
         case CMD_AUDIO_SAMPLES:
             debug("CMD_AUDIO_SAMPLES");
             break;
@@ -56,6 +59,7 @@ void printCommandName(int cmd) {
             debug("Unknown CMD");
             break;
     }
+    return;
 }
 
 void serialPrintHex(const uint8_t *val, const uint8_t &nval) {

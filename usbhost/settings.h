@@ -26,6 +26,7 @@ e-mail   :  support@circuitsathome.com
 #define USB_HOST_SHIELD_SETTINGS_H
 #include "macros.h"
 #include "HardwareSerial.h"
+#include "adapter_config.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI Configuration
@@ -40,7 +41,9 @@ e-mail   :  support@circuitsathome.com
 ////////////////////////////////////////////////////////////////////////////////
 
 /* Set this to 1 to activate serial debugging */
+#ifdef SERIAL_DEBUG
 #define ENABLE_UHS_DEBUGGING 1
+#endif
 
 /* This can be used to select which serial port to use for debugging if
  * multiple serial ports are available.
