@@ -48,7 +48,7 @@ struct frame_pkt_t {
     uint8_t length;
 } __attribute__((packed));
 
-struct ControllerInputData : public frame_pkt_t {
+struct xb_one_controller_input_pkt_t : public frame_pkt_t {
     struct Buttons {
         uint32_t : 2;
         uint32_t start : 1;
@@ -77,9 +77,56 @@ struct ControllerInputData : public frame_pkt_t {
 
 } __attribute__((packed));
 
-struct drum_input_pkt_t : public frame_pkt_t {
-    drum_input_pkt_t()
-        : frame_pkt_t{CMD_INPUT, TYPE_COMMAND, 0, sizeof(drum_input_pkt_t) - sizeof(frame_pkt_t)} {}
+struct xb_one_wireless_legacy_adapter_pkt_t : public frame_pkt_t {
+    xb_one_wireless_legacy_adapter_pkt_t()
+        : frame_pkt_t{CMD_INPUT, TYPE_COMMAND, 0,
+                      sizeof(xb_one_wireless_legacy_adapter_pkt_t) - sizeof(frame_pkt_t)} {
+        unknown = 0x01;
+    }
+    uint16_t : 16;
+    uint8_t playerId;
+    uint8_t unknown;
+};
+
+struct xb_one_guitar_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
+    xb_one_guitar_input_pkt_t(uint8_t playerId) : xb_one_wireless_legacy_adapter_pkt_t() {
+        playerId = playerId;
+        length   = sizeof(xb_one_guitar_input_pkt_t) - sizeof(frame_pkt_t);
+    }
+
+    uint8_t yellowButton : 1;
+    uint8_t blueButton : 1;
+    uint8_t redButton : 1;
+    uint8_t greenButton : 1;
+
+    uint8_t selectButton : 1;
+    uint8_t startButton : 1;
+    uint8_t : 2;
+
+    uint8_t : 3;
+    uint8_t orangeButton : 1;
+
+    uint8_t right : 1;
+    uint8_t left : 1;
+    uint8_t down : 1;
+    uint8_t up : 1;
+
+    uint8_t : 8;
+    uint8_t : 8;
+    uint8_t : 8;
+    uint8_t : 8;
+
+    uint16_t whammy;
+    uint16_t tilt;
+
+    uint8_t : 8;
+    uint8_t : 8;
+};
+
+struct xb_one_drum_input_pkt_t : public frame_pkt_t {
+    xb_one_drum_input_pkt_t()
+        : frame_pkt_t{CMD_INPUT, TYPE_COMMAND, 0,
+                      sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t)} {}
     uint8_t : 2;
     uint8_t start : 1;
     uint8_t select : 1;
@@ -131,10 +178,12 @@ struct xb_packet_t {
         uint16_t length         = 0;
     } header;
     union {
-        uint8_t          buffer[ADAPTER_OUT_SIZE];
-        frame_pkt_t      frame;
-        drum_input_pkt_t drum_input;
-        led_mode_pkt_t   led_mode;
+        uint8_t        buffer[ADAPTER_OUT_SIZE];
+        frame_pkt_t    frame;
+        led_mode_pkt_t led_mode;
+
+        xb_one_drum_input_pkt_t   drum_input;
+        xb_one_guitar_input_pkt_t guitar_input;
     } buf;
 };
 

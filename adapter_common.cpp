@@ -13,6 +13,7 @@
 #include "HardwareSerial.h"
 #include "Config/adapter_config.h"
 #include "XBOXONE.h"
+#include "ARDWIINO.h"
 #include "usbh_midi.h"
 #include "usbhub.h"
 #include "adapter_structs.h"
@@ -36,16 +37,18 @@ MIDI_CREATE_DEFAULT_INSTANCE()
 static xb_packet_t     in_packet     = {.header = {true, 0}};
 static adapter_state_t adapter_state = none;
 
-static uint8_t          drum_state_flag = no_flag;
-static drum_input_pkt_t drum_state;
-static output_state_t   outputStates[NUM_OUT];
+static uint8_t                 drum_state_flag = no_flag;
+static xb_one_drum_input_pkt_t drum_state      = xb_one_drum_input_pkt_t();
+
+static output_state_t midi_output_states[NUM_OUT];
 
 static USB    Usb;
 static USBHub UsbHub(&Usb);
 
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
-static XBOXONE   Xbox(&Usb, xbPacketReceivedCB);
+static ARDWIINO  xboxGuitar(&Usb);
+static XBOXONE   xboxController(&Usb, xbPacketReceivedCB);
 static USBH_MIDI UsbMidi(&Usb);
 
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata) {
@@ -88,7 +91,7 @@ static void forceHardReset(void) {
     while (1) {
     }                       // wait for watchdog to reset processor
 }
-#endif 
+#endif
 
 static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
@@ -98,26 +101,41 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     if (out == NO_OUT)
         return;
 
-    if (outputStates[out].triggered)
+    if (midi_output_states[out].triggered)
         return;
 
     updateDrumStateWithDrumInput(static_cast<output_t>(out), 1, &drum_state);
     drum_state_flag |= changed_flag;
 
-    outputStates[out].triggered   = true;
-    outputStates[out].triggeredAt = millis();
+    midi_output_states[out].triggered   = true;
+    midi_output_states[out].triggeredAt = millis();
     return;
 }
+const uint8_t PROGMEM guitar_1_notify[] = {0x22, 0x00, 0x00, 0x12, 0x00, 0x01, 0x14, 0x30,
+                                           0x00, 0x87, 0x67, 0x00, 0x75, 0x00, 0x69, 0x00,
+                                           0x74, 0x00, 0x61, 0x00, 0x72, 0x00};
 
-static void HandlePacketAuth(xb_packet_t &packet) {
+const uint8_t PROGMEM guitar_2_notify[] = {0x22, 0x00, 0x00, 0x12, 0x01, 0x01, 0x14, 0x30,
+                                           0x00, 0x87, 0x67, 0x00, 0x75, 0x00, 0x69, 0x00,
+                                           0x74, 0x00, 0x61, 0x00, 0x72, 0x00};
+
+const uint8_t PROGMEM drums_notify[] = {0x22, 0x00, 0x00, 0x12, 0x02, 0x01, 0x1b, 0xad,
+                                        0x00, 0x88, 0x64, 0x00, 0x72, 0x00, 0x75, 0x00,
+                                        0x6D, 0x00, 0x73, 0x00, 0x00, 0x00};
+static void           HandlePacketAuth(xb_packet_t &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
         digitalWrite(LED_BUILTIN, HIGH);
         debug("AUTHENTICATED!\r\n");
         adapter_state = running;
+        fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
+        fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
+        fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
     }
 
-    while (Xbox.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
+    // make sure that we're finished sending the controller the incoming command before moving on,
+    // order is important here
+    while (xboxController.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
         Usb.Task();
     }
     return;
@@ -170,7 +188,7 @@ static void HandlePacketRunning(xb_packet_t &packet) {
         case CMD_ACKNOWLEDGE:
             // pass ACK's to controller - this is pretty much only for the guide button to work
             // correctly
-            while (Xbox.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
+            while (xboxController.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
                 Usb.Task();
             }
             break;
@@ -229,7 +247,7 @@ static void SendNextReport(void) {
         Endpoint_SelectEndpoint(ADAPTER_IN_NUM);
 
         if (!Endpoint_IsINReady()) {
-            debug("Endpoint not ready!"); 
+            debug("Endpoint not ready!");
             return;
         }
 
@@ -262,14 +280,14 @@ static void MIDI_Task() {
         }
     }
 #endif
-    if (UsbMidi.UsbMidiConnected) {
-        uint8_t outBuf[3], size;
-        if ((size = UsbMidi.RecvData(outBuf)) > 0)
-            // filter top four bits for "noteon" without channel data
-            if ((outBuf[0] >> 4) == 0x9) {
-                noteOn(outBuf[1], outBuf[2]);
-            }
-    }
+    // if (UsbMidi.UsbMidiConnected) {
+    //     uint8_t outBuf[3], size;
+    //     if ((size = UsbMidi.RecvData(outBuf)) > 0)
+    //         // filter top four bits for "noteon" without channel data
+    //         if ((outBuf[0] >> 4) == 0x9) {
+    //             noteOn(outBuf[1], outBuf[2]);
+    //         }
+    // }
 }
 
 static void DRUM_STATE_Task() {
@@ -278,14 +296,14 @@ static void DRUM_STATE_Task() {
 
     auto current_time = millis();
     for (auto out = 0; out < NUM_OUT; out++) {
-        if (!outputStates[out].triggered) {
+        if (!midi_output_states[out].triggered) {
             continue;
         }
 
-        auto time_since_trigger = current_time - outputStates[out].triggeredAt;
+        auto time_since_trigger = current_time - midi_output_states[out].triggeredAt;
         if (time_since_trigger > TRIGGER_HOLD_MS) {
             updateDrumStateWithDrumInput(static_cast<output_t>(out), 0, &drum_state);
-            outputStates[out].triggered = false;
+            midi_output_states[out].triggered = false;
             drum_state_flag |= changed_flag;
         }
     }
@@ -298,12 +316,48 @@ static void DRUM_STATE_Task() {
     }
 }
 
+static void AnnounceTask() {
+    if (adapter_state != init_state)
+        return;
+
+    static unsigned long last_announce_time = 0;
+    if ((millis() - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
+        if (xboxController.XboxOneConnected) {
+            // debug("ANNOUNCING\r\n");
+            identifiers::get_announce(packet_circ_buf::get_write());
+            last_announce_time = millis();
+        }
+    }
+}
+static bool guitarNotified = false;
+
+static void GuitarTask() {
+    if (adapter_state != running)
+        return;
+
+    if (!xboxGuitar.Xbox360Connected)
+        return;
+
+    if (!guitarNotified) {
+        guitarNotified = true;
+        return;
+    }
+
+    auto intput_pkt = xboxGuitar.getInputPacket();
+    if (intput_pkt->command == 0x14)
+        fillInputPacketFromGuitarData(intput_pkt, packet_circ_buf::get_write(), 0);
+
+    return;
+}
+
 static inline void DoTasks() {
     Usb.Task();
     HID_Task();
     USB_USBTask();
     MIDI_Task();
     DRUM_STATE_Task();
+    AnnounceTask();
+    GuitarTask();
 }
 
 static void SetupHardware(void) {
@@ -329,26 +383,7 @@ static void SetupHardware(void) {
 
 int main(void) {
     SetupHardware();
-
-    drum_state.command  = CMD_INPUT;
-    drum_state.type     = TYPE_COMMAND;
-    drum_state.deviceId = 0;
-    drum_state.length   = sizeof(drum_input_pkt_t) - sizeof(frame_pkt_t);
-
-    unsigned long last_announce_time = 0, current_time = millis();
     for (;;) {
         DoTasks();
-        if (adapter_state == init_state) {
-            current_time = millis();
-            if ((current_time - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
-                if (Xbox.XboxOneConnected) {
-                    debug("ANNOUNCING\r\n");
-                    identifiers::get_announce(packet_circ_buf::get_write());
-                    last_announce_time = millis();
-                } else {
-                    debug("WAITING FOR CONTROLLER\r\n");
-                }
-            }
-        }
     }
 }

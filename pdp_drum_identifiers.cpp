@@ -1,3 +1,5 @@
+#ifdef EMULATE_PDP_WIRED_LEGACY_ADAPTER
+
 #include "adapter_identifiers.h"
 #include "adapter_structs.h"
 #include "version_helper.h"
@@ -71,3 +73,5 @@ int get_identify(const uint8_t &sequence, xb_packet_t *packet) {
 }
 
 }  // namespace identifiers
+
+#endif  // EMULATE_PDP_WIRED_LEGACY_ADAPTER
