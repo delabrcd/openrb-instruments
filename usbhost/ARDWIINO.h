@@ -37,28 +37,28 @@
 #define XBOX_MAX_ENDPOINTS 3
 
 struct xb_three_gh_input_pkt_t {
-    uint8_t : 8;
+    uint8_t unused1;
 
     uint8_t command;
 
-    uint8_t : 2;
-    uint8_t selectButton : 1;
-    uint8_t startButton : 1;
-
-    uint8_t right : 1;
-    uint8_t left : 1;
-    uint8_t strumDown : 1;
     uint8_t strumUp : 1;
+    uint8_t strumDown : 1;
+    uint8_t left : 1;
+    uint8_t right : 1;
 
-    uint8_t yellowButton : 1;
-    uint8_t blueButton : 1;
-    uint8_t redButton : 1;
-    uint8_t greenButton : 1;
+    uint8_t startButton : 1;
+    uint8_t selectButton : 1;
+    uint8_t : 2;
 
-    uint8_t : 3;
     uint8_t orangeButton : 1;
+    uint8_t : 3;
 
-    uint8_t unused[6];
+    uint8_t greenButton : 1;
+    uint8_t redButton : 1;
+    uint8_t blueButton : 1;
+    uint8_t yellowButton : 1;
+
+    uint8_t unused2[6];
 
     uint16_t whammy;
     uint16_t tilt;
@@ -168,7 +168,7 @@ public:
     bool Xbox360Connected;
 
     inline const xb_three_gh_input_pkt_t *getInputPacket() {
-        return &pkt;
+        return &read_union.pkt;
     }
 
 protected:
@@ -184,10 +184,10 @@ private:
 
     bool bPollEnable;
 
-    union {
+    union tmp_named_union {
         uint8_t                 readBuf[EP_MAXPKTSIZE];  // General purpose buffer for input data
         xb_three_gh_input_pkt_t pkt;
-    };
+    } read_union;
 
     uint8_t writeBuf[8];  // General purpose buffer for output data
 

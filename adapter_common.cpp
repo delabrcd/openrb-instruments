@@ -47,7 +47,7 @@ static USBHub UsbHub(&Usb);
 
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
-static ARDWIINO  xboxGuitar(&Usb);
+static ARDWIINO  player1_guitar(&Usb);
 static XBOXONE   xboxController(&Usb, xbPacketReceivedCB);
 static USBH_MIDI UsbMidi(&Usb);
 
@@ -122,15 +122,16 @@ const uint8_t PROGMEM guitar_2_notify[] = {0x22, 0x00, 0x00, 0x12, 0x01, 0x01, 0
 const uint8_t PROGMEM drums_notify[] = {0x22, 0x00, 0x00, 0x12, 0x02, 0x01, 0x1b, 0xad,
                                         0x00, 0x88, 0x64, 0x00, 0x72, 0x00, 0x75, 0x00,
                                         0x6D, 0x00, 0x73, 0x00, 0x00, 0x00};
-static void           HandlePacketAuth(xb_packet_t &packet) {
+
+static void HandlePacketAuth(xb_packet_t &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
         packet.buf.buffer[3] == 2 && packet.buf.buffer[4] == 1 && packet.buf.buffer[5] == 0) {
         digitalWrite(LED_BUILTIN, HIGH);
         debug("AUTHENTICATED!\r\n");
         adapter_state = running;
-        fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
-        fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
-        fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
+        // fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
+        // fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
+        // fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
     }
 
     // make sure that we're finished sending the controller the incoming command before moving on,
@@ -177,7 +178,7 @@ static void HandlePacketInit(xb_packet_t &packet) {
 static void HandlePacketRunning(xb_packet_t &packet) {
     switch (packet.buf.frame.command) {
         case CMD_POWER_MODE:
-            if (packet.buf.buffer[sizeof(frame_pkt_t)] == POWER_OFF) {
+            if (packet.buf.buffer[4] == POWER_OFF) {
                 // xbox has told us to power off for some reason, move to power_off state and turn
                 // off the indicator LED
                 debug("Powering down... \r\n");
@@ -191,6 +192,29 @@ static void HandlePacketRunning(xb_packet_t &packet) {
             while (xboxController.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
                 Usb.Task();
             }
+            break;
+        case 0x24:
+            fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
+            fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
+            fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
+            break;
+        case 0x21:
+            switch (packet.buf.buffer[4]) {
+                case 0:
+                    fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify,
+                                  sizeof(guitar_1_notify));
+                    break;
+                case 1:
+                    fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify,
+                                  sizeof(guitar_2_notify));
+                    break;
+                case 2:
+                    fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
+                    break;
+                default:
+                    break;
+            }
+
             break;
         default:
             break;
@@ -323,7 +347,7 @@ static void AnnounceTask() {
     static unsigned long last_announce_time = 0;
     if ((millis() - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
         if (xboxController.XboxOneConnected) {
-            // debug("ANNOUNCING\r\n");
+            debug("ANNOUNCING\r\n");
             identifiers::get_announce(packet_circ_buf::get_write());
             last_announce_time = millis();
         }
@@ -335,15 +359,16 @@ static void GuitarTask() {
     if (adapter_state != running)
         return;
 
-    if (!xboxGuitar.Xbox360Connected)
+    if (!player1_guitar.Xbox360Connected)
         return;
 
     if (!guitarNotified) {
+        fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
         guitarNotified = true;
         return;
     }
 
-    auto intput_pkt = xboxGuitar.getInputPacket();
+    auto intput_pkt = player1_guitar.getInputPacket();
     if (intput_pkt->command == 0x14)
         fillInputPacketFromGuitarData(intput_pkt, packet_circ_buf::get_write(), 0);
 
@@ -378,6 +403,7 @@ static void SetupHardware(void) {
     USB_Init();
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
+    randomSeed(analogRead(0));
     adapter_state = init_state;
 }
 
