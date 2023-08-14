@@ -50,7 +50,7 @@ void fill_from_pgm(xb_packet_t *packet, const uint8_t *pgm, const uint8_t &size)
     }
     packet->header.triggered_time = 0;
     packet->header.length         = size;
-    packet->buf.frame.sequence = getSequence();
+    packet->buf.frame.sequence    = getSequence();
 }
 
 namespace identifiers {
@@ -60,6 +60,9 @@ int get_n_identify() {
 }
 int get_announce(xb_packet_t *packet) {
     fill_from_pgm(packet, wla_announce, sizeof(wla_announce) / sizeof(wla_announce[0]));
+    for (int i = 5; i <= 9; i++) {
+        packet->buf.buffer[i] = random(0, UINT8_MAX);
+    }
     return 0;
 }
 

@@ -140,8 +140,9 @@ uint8_t ARDWIINO::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     rcode = pUsb->setEpInfoEntry(bAddress, 1, epInfo);
     if (rcode)
         goto FailSetDevTblEntry;
-    
-    // TODO CDD - look into why these are different and determine if we need to be dynamically finding them 
+
+    // TODO CDD - look into why these are different and determine if we need to be dynamically
+    // finding them
     /* Initialize data structures for endpoints of device */
     epInfo[XBOX_INPUT_PIPE].epAddr      = 0x02;            // XBOX 360 report endpoint
     epInfo[XBOX_INPUT_PIPE].epAttribs   = USB_TRANSFER_TYPE_INTERRUPT;
@@ -222,25 +223,14 @@ uint8_t ARDWIINO::Poll() {
         return 0;
     uint16_t BUFFER_SIZE = EP_MAXPKTSIZE;
     pUsb->inTransfer(bAddress, epInfo[XBOX_INPUT_PIPE].epAddr, &BUFFER_SIZE,
-                     readBuf);  // input on endpoint 1
-    readReport();
+                     read_union.readBuf);  // input on endpoint 1
 #ifdef PRINTREPORT
+    readReport();
     printReport();  // Uncomment "#define PRINTREPORT" to print the report send by the Xbox 360
                     // Controller
 #endif
     return 0;
 }
-
-void ARDWIINO::readReport() {
-    if (readBuf == NULL)
-        return;
-    if (readBuf[0] != 0x00 ||
-        readBuf[1] != 0x14) {  // Check if it's the correct report - the controller also sends
-                               // different status reports
-        return;
-    }
-}
-
 static bool isEmpty(uint8_t *buf, size_t nbuf) {
     for (size_t i = 0; i < nbuf; i++) {
         if (buf[i])
@@ -249,15 +239,62 @@ static bool isEmpty(uint8_t *buf, size_t nbuf) {
     return true;
 }
 
+void ARDWIINO::readReport() {
+    if (isEmpty(read_union.readBuf, XBOX_REPORT_BUFFER_SIZE))
+        return;
+
+    bool newline = false;
+    if (read_union.pkt.blueButton) {
+        Notify(PSTR("BLUE "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.greenButton) {
+        Notify(PSTR("GREEN "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.orangeButton) {
+        Notify(PSTR("ORANGE "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.yellowButton) {
+        Notify(PSTR("YELLOW "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.redButton) {
+        Notify(PSTR("RED "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.strumDown) {
+        Notify(PSTR("STRUM DOWN "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.strumUp) {
+        Notify(PSTR("STRUM UP "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.startButton) {
+        Notify(PSTR("START "), 0x80);
+        newline = true;
+    }
+    if (read_union.pkt.selectButton) {
+        Notify(PSTR("SELECT "), 0x80);
+        newline = true;
+    }
+    if (newline) {
+        Notify(PSTR("\r\n "), 0x80);
+    }
+    return;
+}
+
 void ARDWIINO::printReport() {  // Uncomment "#define PRINTREPORT" to print the report send by the
                                 // Xbox 360 Controller
 #ifdef PRINTREPORT
-    if (readBuf == NULL)
+    if (read_union.readBuf == NULL)
         return;
-    if (isEmpty(readBuf, XBOX_REPORT_BUFFER_SIZE))
+    if (isEmpty(read_union.readBuf, XBOX_REPORT_BUFFER_SIZE))
         return;
     for (uint8_t i = 0; i < XBOX_REPORT_BUFFER_SIZE; i++) {
-        D_PrintHex<uint8_t>(readBuf[i], 0x80);
+        D_PrintHex<uint8_t>(read_union.readBuf[i], 0x80);
         Notify(PSTR(" "), 0x80);
     }
     Notify(PSTR("\r\n"), 0x80);

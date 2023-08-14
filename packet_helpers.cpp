@@ -103,24 +103,43 @@ void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
 
 void fillInputPacketFromGuitarData(const xb_three_gh_input_pkt_t *guitar_in,
                                    xb_packet_t *packet_out, uint8_t playerId) {
+    memset(packet_out->buf.buffer, 0, sizeof(packet_out->buf.buffer));
+
     packet_out->header.length = sizeof(xb_one_guitar_input_pkt_t);
 
     auto *guitar_pkt = &packet_out->buf.guitar_input;
 
+    guitar_pkt->command  = CMD_INPUT;
+    guitar_pkt->sequence = getSequence();
+    guitar_pkt->length   = sizeof(xb_one_guitar_input_pkt_t) - sizeof(frame_pkt_t);
+
+    guitar_pkt->greenButton  = guitar_in->greenButton;
+    guitar_pkt->redButton    = guitar_in->redButton;
     guitar_pkt->yellowButton = guitar_in->yellowButton;
     guitar_pkt->blueButton   = guitar_in->blueButton;
-    guitar_pkt->redButton    = guitar_in->redButton;
-    guitar_pkt->selectButton = guitar_in->selectButton;
-    guitar_pkt->startButton  = guitar_in->startButton;
     guitar_pkt->orangeButton = guitar_in->orangeButton;
+
+    guitar_pkt->a_green  = guitar_in->greenButton;
+    guitar_pkt->b_red    = guitar_in->redButton;
+    guitar_pkt->y_yellow = guitar_in->yellowButton;
+    guitar_pkt->x_blue   = guitar_in->blueButton;
+
+    guitar_pkt->selectButton = guitar_in->selectButton || (guitar_in->tilt > (UINT16_MAX / 2));
+    guitar_pkt->startButton  = guitar_in->startButton;
+
+    guitar_pkt->select = guitar_in->selectButton || (guitar_in->tilt > (UINT16_MAX / 2));
+    guitar_pkt->start  = guitar_in->startButton;
 
     guitar_pkt->right = guitar_in->right;
     guitar_pkt->left  = guitar_in->left;
     guitar_pkt->down  = guitar_in->strumDown;
     guitar_pkt->up    = guitar_in->strumUp;
 
-    guitar_pkt->whammy = guitar_in->whammy;
-    guitar_pkt->tilt   = guitar_in->tilt;
+    guitar_pkt->dpadUp    = guitar_in->strumUp;
+    guitar_pkt->dpadDown  = guitar_in->strumDown;
+    guitar_pkt->dpadLeft  = guitar_in->left;
+    guitar_pkt->dpadRight = guitar_in->right;
 
+    guitar_pkt->whammy   = guitar_in->whammy / 2;
     guitar_pkt->playerId = playerId;
 }

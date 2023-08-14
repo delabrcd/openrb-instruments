@@ -83,45 +83,63 @@ struct xb_one_wireless_legacy_adapter_pkt_t : public frame_pkt_t {
                       sizeof(xb_one_wireless_legacy_adapter_pkt_t) - sizeof(frame_pkt_t)} {
         unknown = 0x01;
     }
-    uint16_t : 16;
+    uint8_t : 2;
+    uint8_t start : 1;
+    uint8_t select : 1;
+
+    uint8_t a_green : 1;
+    uint8_t b_red : 1;
+    uint8_t x_blue : 1;
+    uint8_t y_yellow : 1;
+
+    uint8_t dpadUp : 1;
+    uint8_t dpadDown : 1;
+    uint8_t dpadLeft : 1;
+    uint8_t dpadRight : 1;
+
+    uint8_t left_bumper : 1;
+    uint8_t right_bumper : 1;
+    uint8_t : 2;
+
     uint8_t playerId;
     uint8_t unknown;
-};
+} __attribute__((packed));
 
 struct xb_one_guitar_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
     xb_one_guitar_input_pkt_t(uint8_t playerId) : xb_one_wireless_legacy_adapter_pkt_t() {
         playerId = playerId;
         length   = sizeof(xb_one_guitar_input_pkt_t) - sizeof(frame_pkt_t);
     }
-
-    uint8_t yellowButton : 1;
-    uint8_t blueButton : 1;
-    uint8_t redButton : 1;
-    uint8_t greenButton : 1;
-
-    uint8_t selectButton : 1;
-    uint8_t startButton : 1;
     uint8_t : 2;
+    uint8_t startButton : 1;
+    uint8_t selectButton : 1;
 
-    uint8_t : 3;
-    uint8_t orangeButton : 1;
+    uint8_t greenButton : 1;
+    uint8_t redButton : 1;
+    uint8_t blueButton : 1;
+    uint8_t yellowButton : 1;
 
-    uint8_t right : 1;
-    uint8_t left : 1;
-    uint8_t down : 1;
     uint8_t up : 1;
+    uint8_t down : 1;
+    uint8_t left : 1;
+    uint8_t right : 1;
+
+    uint8_t orangeButton : 1;
+    uint8_t : 3;
+
+    uint8_t : 8;
+
+    uint8_t whammy;
 
     uint8_t : 8;
     uint8_t : 8;
     uint8_t : 8;
     uint8_t : 8;
-
-    uint16_t whammy;
-    uint16_t tilt;
-
     uint8_t : 8;
     uint8_t : 8;
-};
+    uint8_t : 8;
+    uint8_t : 8;
+} __attribute__((packed));
 
 struct xb_one_drum_input_pkt_t : public frame_pkt_t {
     xb_one_drum_input_pkt_t()
@@ -166,21 +184,14 @@ struct xb_one_drum_input_pkt_t : public frame_pkt_t {
 
 } __attribute__((packed));
 
-struct led_mode_pkt_t : public frame_pkt_t {
-    uint8_t : 8;
-    uint8_t mode;
-    uint8_t brightness;
-} __attribute__((packed));
-
 struct xb_packet_t {
     struct {
         uint32_t triggered_time = 0;
         uint16_t length         = 0;
     } header;
     union {
-        uint8_t        buffer[ADAPTER_OUT_SIZE];
-        frame_pkt_t    frame;
-        led_mode_pkt_t led_mode;
+        uint8_t     buffer[ADAPTER_OUT_SIZE];
+        frame_pkt_t frame;
 
         xb_one_drum_input_pkt_t   drum_input;
         xb_one_guitar_input_pkt_t guitar_input;
