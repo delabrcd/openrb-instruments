@@ -3,6 +3,7 @@
 #include "adapter_identifiers.h"
 #include "adapter_structs.h"
 #include "version_helper.h"
+#include "packet_helpers.h"
 
 const uint8_t PROGMEM announce[] = {
     0x02, 0x20, 0x01, 0x1c, 0x7e, 0xed, 0x82, 0x8b, 0xec, 0x97, 0x00, 0x00, 0x38, 0x07, 0x62, 0x42,
@@ -31,14 +32,6 @@ const uint8_t PROGMEM drumidentify4[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 const uint8_t PROGMEM drumidentify5[] = {0x04, 0xa0, 0x01, 0x00, 0xc5, 0x01, 0x00, 0x00};
-
-static void fill_from_pgm(xb_packet_t *packet, const uint8_t *pgm, const uint8_t &size) {
-    for (uint8_t i = 0; i < size; i++) {
-        packet->buf.buffer[i] = pgm_read_byte(pgm + i);
-    }
-    packet->header.triggered_time = 0;
-    packet->header.length         = size;
-}
 
 namespace identifiers {
 

@@ -44,15 +44,6 @@ const uint8_t PROGMEM wla_identify6[] = {0x04, 0xB0, 0x01, 0x03, 0xA2, 0x02, 0x0
 
 const uint8_t PROGMEM wla_identify7[] = {0x04, 0xA0, 0x01, 0x00, 0xA5, 0x02};
 
-void fill_from_pgm(xb_packet_t *packet, const uint8_t *pgm, const uint8_t &size) {
-    for (uint8_t i = 0; i < size; i++) {
-        packet->buf.buffer[i] = pgm_read_byte(pgm + i);
-    }
-    packet->header.triggered_time = 0;
-    packet->header.length         = size;
-    packet->buf.frame.sequence    = getSequence();
-}
-
 namespace identifiers {
 
 int get_n_identify() {
