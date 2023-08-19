@@ -3,6 +3,15 @@
 #include "Arduino.h"
 #include "ARDWIINO.h"
 
+void fill_from_pgm(xb_packet_t *packet, const uint8_t *pgm, const uint8_t &size) {
+    for (uint8_t i = 0; i < size; i++) {
+        packet->buf.buffer[i] = pgm_read_byte(pgm + i);
+    }
+    packet->header.triggered_time = 0;
+    packet->header.length         = size;
+    packet->buf.frame.sequence    = getSequence();
+}
+
 output_e outputForNote(const uint8_t &note) {
     switch (note) {
 #define MIDI_MAP(midi_note, rb_out) \

@@ -3,6 +3,8 @@
 #include "adapter_structs.h"
 #include "ARDWIINO.h"
 
+void fill_from_pgm(xb_packet_t *packet, const uint8_t *pgm, const uint8_t &size);
+
 output_e outputForNote(const uint8_t &note);
 uint8_t  getSequence();
 
