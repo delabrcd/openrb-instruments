@@ -3,7 +3,7 @@
 #include "Arduino.h"
 #include "ARDWIINO.h"
 
-output_t outputForNote(const uint8_t &note) {
+output_e outputForNote(const uint8_t &note) {
     switch (note) {
 #define MIDI_MAP(midi_note, rb_out) \
     case midi_note:                 \
@@ -42,16 +42,13 @@ void fillInputPacketFromControllerData(const uint8_t *data, const uint8_t &ndata
     drum_input_d->type     = cast_data->deviceId;
     drum_input_d->sequence = getSequence();
     drum_input_d->length   = sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t);
+    drum_input_d->playerId = DRUMS;
 
-    drum_input_d->a = cast_data->buttons.a;
-    drum_input_d->b = cast_data->buttons.b;
-    drum_input_d->x = cast_data->buttons.x;
-    drum_input_d->y = cast_data->buttons.y;
+    drum_input_d->dpadState1 = cast_data->buttons.dpadState;
+    drum_input_d->dpadState2 = cast_data->buttons.dpadState;
 
-    drum_input_d->dpadDown  = cast_data->buttons.dpadDown;
-    drum_input_d->dpadUp    = cast_data->buttons.dpadUp;
-    drum_input_d->dpadLeft  = cast_data->buttons.dpadLeft;
-    drum_input_d->dpadRight = cast_data->buttons.dpadRight;
+    drum_input_d->coloredButtonState1 = cast_data->buttons.coloredButtonState;
+    drum_input_d->coloredButtonState2 = cast_data->buttons.coloredButtonState;
 
     drum_input_d->select = cast_data->buttons.select;
     drum_input_d->start  = cast_data->buttons.start;
@@ -68,7 +65,7 @@ bool fillPacket(const uint8_t *input, const uint8_t &length, xb_packet_t *packet
     return true;
 }
 
-void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
+void updateDrumStateWithDrumInput(const output_e &out, const uint8_t &state,
                                   xb_one_drum_input_pkt_t *drum_input) {
     switch (out) {
         case OUT_KICK:
@@ -101,45 +98,35 @@ void updateDrumStateWithDrumInput(const output_t &out, const uint8_t &state,
     return;
 }
 
-void fillInputPacketFromGuitarData(const xb_three_gh_input_pkt_t *guitar_in,
+void fillInputPacketFromGuitarData(const ARDWIINO::xb_three_gh_input_pkt_t *guitar_in,
                                    xb_packet_t *packet_out, uint8_t playerId) {
     memset(packet_out->buf.buffer, 0, sizeof(packet_out->buf.buffer));
 
-    packet_out->header.length = sizeof(xb_one_guitar_input_pkt_t);
+    packet_out->header.length         = sizeof(xb_one_guitar_input_pkt_t);
+    packet_out->header.triggered_time = millis();
 
     auto *guitar_pkt = &packet_out->buf.guitar_input;
 
     guitar_pkt->command  = CMD_INPUT;
     guitar_pkt->sequence = getSequence();
     guitar_pkt->length   = sizeof(xb_one_guitar_input_pkt_t) - sizeof(frame_pkt_t);
+    guitar_pkt->playerId = playerId;
+    guitar_pkt->unknown  = 0x01;
 
-    guitar_pkt->greenButton  = guitar_in->greenButton;
-    guitar_pkt->redButton    = guitar_in->redButton;
-    guitar_pkt->yellowButton = guitar_in->yellowButton;
-    guitar_pkt->blueButton   = guitar_in->blueButton;
-    guitar_pkt->orangeButton = guitar_in->orangeButton;
+    guitar_pkt->coloredButtonState1 = guitar_in->coloredButtonState;
+    guitar_pkt->coloredButtonState2 = guitar_in->coloredButtonState;
+    guitar_pkt->orangeButton        = guitar_in->orangeButton;
 
-    guitar_pkt->a_green  = guitar_in->greenButton;
-    guitar_pkt->b_red    = guitar_in->redButton;
-    guitar_pkt->y_yellow = guitar_in->yellowButton;
-    guitar_pkt->x_blue   = guitar_in->blueButton;
-
-    guitar_pkt->selectButton = guitar_in->selectButton || (guitar_in->tilt > (UINT16_MAX / 2));
+    guitar_pkt->selectButton = guitar_in->selectButton || (guitar_in->tilt >= (UINT16_MAX / 2));
     guitar_pkt->startButton  = guitar_in->startButton;
 
-    guitar_pkt->select = guitar_in->selectButton || (guitar_in->tilt > (UINT16_MAX / 2));
+    guitar_pkt->select = guitar_in->selectButton || (guitar_in->tilt >= (UINT16_MAX / 2));
     guitar_pkt->start  = guitar_in->startButton;
 
-    guitar_pkt->right = guitar_in->right;
-    guitar_pkt->left  = guitar_in->left;
-    guitar_pkt->down  = guitar_in->strumDown;
-    guitar_pkt->up    = guitar_in->strumUp;
+    guitar_pkt->dpadState1 = guitar_in->dpadState;
+    guitar_pkt->dpadState2 = guitar_in->dpadState;
 
-    guitar_pkt->dpadUp    = guitar_in->strumUp;
-    guitar_pkt->dpadDown  = guitar_in->strumDown;
-    guitar_pkt->dpadLeft  = guitar_in->left;
-    guitar_pkt->dpadRight = guitar_in->right;
+    guitar_pkt->whammy = guitar_in->whammy / 2;
 
-    guitar_pkt->whammy   = guitar_in->whammy / 2;
-    guitar_pkt->playerId = playerId;
+    return;
 }
