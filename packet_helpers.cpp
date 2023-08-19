@@ -112,7 +112,7 @@ void fillInputPacketFromGuitarData(const ARDWIINO::xb_three_gh_input_pkt_t *guit
     memset(packet_out->buf.buffer, 0, sizeof(packet_out->buf.buffer));
 
     packet_out->header.length         = sizeof(xb_one_guitar_input_pkt_t);
-    packet_out->header.triggered_time = millis();
+    // packet_out->header.triggered_time = millis();
 
     auto *guitar_pkt = &packet_out->buf.guitar_input;
 
@@ -135,7 +135,7 @@ void fillInputPacketFromGuitarData(const ARDWIINO::xb_three_gh_input_pkt_t *guit
     guitar_pkt->dpadState1 = guitar_in->dpadState;
     guitar_pkt->dpadState2 = guitar_in->dpadState;
 
-    guitar_pkt->whammy = guitar_in->whammy / 2;
+    guitar_pkt->whammy = ((guitar_in->whammy >> 8) & 0xFF);
 
     return;
 }
