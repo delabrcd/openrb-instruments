@@ -1,7 +1,7 @@
 #include "packet_circ_buf.h"
 
 namespace packet_circ_buf {
-#define OUT_BUF_LEN 6
+#define OUT_BUF_LEN 14
 
 static uint8_t     write                    = 0;
 static uint8_t     read                     = 0;

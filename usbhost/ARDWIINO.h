@@ -21,6 +21,7 @@
 #include "Usb.h"
 #include "usbhid.h"
 #include "xboxEnums.h"
+#include "adapter_structs.h"
 
 /* Data Xbox 360 taken from descriptors */
 #define EP_MAXPKTSIZE 32  // max size for data via USB
@@ -36,44 +37,28 @@
 #define XBOX_REPORT_BUFFER_SIZE 14  // Size of the input report buffer
 #define XBOX_MAX_ENDPOINTS 3
 
-struct xb_three_gh_input_pkt_t {
-    uint8_t unused1;
-
-    uint8_t command;
-
-    uint8_t strumUp : 1;
-    uint8_t strumDown : 1;
-    uint8_t left : 1;
-    uint8_t right : 1;
-
-    uint8_t startButton : 1;
-    uint8_t selectButton : 1;
-    uint8_t : 2;
-
-    uint8_t orangeButton : 1;
-    uint8_t : 3;
-
-    uint8_t greenButton : 1;
-    uint8_t redButton : 1;
-    uint8_t blueButton : 1;
-    uint8_t yellowButton : 1;
-
-    uint8_t unused2[6];
-
-    uint16_t whammy;
-    uint16_t tilt;
-} __attribute__((packed));
-
-enum xb_three_command {
-
-};
-
-static_assert(XBOX_REPORT_BUFFER_SIZE == sizeof(xb_three_gh_input_pkt_t),
-              "Incorrect XBOX report size");
-
 /** This class implements support for a Xbox wired controller via USB. */
 class ARDWIINO : public USBDeviceConfig {
 public:
+    struct xb_three_gh_input_pkt_t {
+        uint8_t unused1;
+        uint8_t command;
+        uint8_t dpadState : 4;
+        uint8_t startButton : 1;
+        uint8_t selectButton : 1;
+        uint8_t : 2;
+        uint8_t orangeButton : 1;
+        uint8_t : 3;
+        uint8_t coloredButtonState : 4;
+        uint8_t unused2[6];
+
+        uint16_t whammy;
+        uint16_t tilt;
+    } __attribute__((packed));
+
+    static_assert(XBOX_REPORT_BUFFER_SIZE == sizeof(xb_three_gh_input_pkt_t),
+                  "Incorrect XBOX report size");
+
     /**
      * Constructor for the ARDWIINO class.
      * @param  pUsb   Pointer to USB class instance.
@@ -167,8 +152,12 @@ public:
     /** True if a Xbox 360 controller is connected. */
     bool Xbox360Connected;
 
-    inline const xb_three_gh_input_pkt_t *getInputPacket() {
-        return &read_union.pkt;
+    inline const xb_three_gh_input_pkt_t *getGuitarState() {
+        if ((guitar_state_flags & changed_flag) == 0) {
+            return nullptr;
+        }
+        guitar_state_flags &= ~changed_flag;
+        return &pkt;
     }
 
 protected:
@@ -184,10 +173,22 @@ private:
 
     bool bPollEnable;
 
-    union tmp_named_union {
+    union {
         uint8_t                 readBuf[EP_MAXPKTSIZE];  // General purpose buffer for input data
         xb_three_gh_input_pkt_t pkt;
-    } read_union;
+    };
+
+    unsigned long last_update_time = 0;
+
+    struct historic_button_state_t {
+        uint8_t green_toggled : 1;
+        uint8_t red_toggled : 1;
+        uint8_t yellow_toggled : 1;
+        uint8_t blue_toggled : 1;
+        uint8_t orange_toggled : 1;
+    } historic_button_state;
+
+    uint8_t guitar_state_flags = 0;
 
     uint8_t writeBuf[8];  // General purpose buffer for output data
 
@@ -196,6 +197,21 @@ private:
 
     /* Private commands */
     void XboxCommand(uint8_t *data, uint16_t nbytes);
-};
 
+    void updateGuitarState();
+};
+#if 0
+struct guitar_state_t {
+    uint8_t coloredButtonState : 4;
+    uint8_t dpadState : 4;
+
+    uint8_t : 1;
+    uint8_t orangeButton : 1;
+    uint8_t startButton : 1;
+    uint8_t selectButton : 1;
+
+    uint16_t whammy;
+    uint16_t tilt;
+};
+#endif
 #endif  // _xboxusb_h_

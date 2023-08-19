@@ -17,7 +17,7 @@
 
 #define ANNOUNCE_INTERVAL_MS 2000
 
-#define SERIAL_DEBUG Serial1
+// #define SERIAL_DEBUG Serial1
 // #define CUSTOM_MIDI_MAP "Config/MyCustomMidiMap.tbl"
 #define EMULATE_WIRELESS_LEGACY_ADAPTER
 // #define EMULATE_PDP_WIRED_LEGACY_ADAPTER

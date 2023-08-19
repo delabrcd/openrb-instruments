@@ -53,14 +53,11 @@ struct xb_one_controller_input_pkt_t : public frame_pkt_t {
         uint32_t : 2;
         uint32_t start : 1;
         uint32_t select : 1;
-        uint32_t a : 1;
-        uint32_t b : 1;
-        uint32_t x : 1;
-        uint32_t y : 1;
-        uint32_t dpadUp : 1;
-        uint32_t dpadDown : 1;
-        uint32_t dpadLeft : 1;
-        uint32_t dpadRight : 1;
+
+        uint8_t coloredButtonState : 4;
+
+        uint8_t dpadState : 4;
+
         uint32_t bumperLeft : 1;
         uint32_t bumperRight : 1;
         uint32_t stickLeft : 1;
@@ -87,15 +84,9 @@ struct xb_one_wireless_legacy_adapter_pkt_t : public frame_pkt_t {
     uint8_t start : 1;
     uint8_t select : 1;
 
-    uint8_t a_green : 1;
-    uint8_t b_red : 1;
-    uint8_t x_blue : 1;
-    uint8_t y_yellow : 1;
+    uint8_t coloredButtonState1 : 4;
 
-    uint8_t dpadUp : 1;
-    uint8_t dpadDown : 1;
-    uint8_t dpadLeft : 1;
-    uint8_t dpadRight : 1;
+    uint8_t dpadState1 : 4;
 
     uint8_t left_bumper : 1;
     uint8_t right_bumper : 1;
@@ -114,15 +105,9 @@ struct xb_one_guitar_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
     uint8_t startButton : 1;
     uint8_t selectButton : 1;
 
-    uint8_t greenButton : 1;
-    uint8_t redButton : 1;
-    uint8_t blueButton : 1;
-    uint8_t yellowButton : 1;
+    uint8_t coloredButtonState2 : 4;
 
-    uint8_t up : 1;
-    uint8_t down : 1;
-    uint8_t left : 1;
-    uint8_t right : 1;
+    uint8_t dpadState2 : 4;
 
     uint8_t orangeButton : 1;
     uint8_t : 3;
@@ -131,48 +116,42 @@ struct xb_one_guitar_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
 
     uint8_t whammy;
 
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
-    uint8_t : 8;
+    uint8_t unused[8];
 } __attribute__((packed));
 
-struct xb_one_drum_input_pkt_t : public frame_pkt_t {
-    xb_one_drum_input_pkt_t()
-        : frame_pkt_t{CMD_INPUT, TYPE_COMMAND, 0,
-                      sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t)} {}
+struct xb_one_drum_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
+    xb_one_drum_input_pkt_t(uint8_t playerId) : xb_one_wireless_legacy_adapter_pkt_t() {
+        playerId = playerId;
+        length   = sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t);
+        unknown  = 0x01;
+    }
     uint8_t : 2;
     uint8_t start : 1;
     uint8_t select : 1;
-    uint8_t a : 1;
-    uint8_t b : 1;
-    uint8_t x : 1;
-    uint8_t y : 1;
 
-    uint8_t dpadUp : 1;
-    uint8_t dpadDown : 1;
-    uint8_t dpadLeft : 1;
-    uint8_t dpadRight : 1;
+    uint8_t coloredButtonState2 : 4;
+
+    uint8_t dpadState2 : 4;
+
     uint8_t kick : 1;
     uint8_t doublekick : 1;
     uint8_t : 2;
 
     uint8_t : 3;
     uint8_t padYellow : 1;
+
     uint8_t : 3;
     uint8_t padRed : 1;
 
     uint8_t : 3;
     uint8_t padGreen : 1;
+
     uint8_t : 3;
     uint8_t padBlue : 1;
 
     uint8_t : 3;
     uint8_t cymbalBlue : 1;
+
     uint8_t : 3;
     uint8_t cymbalYellow : 1;
 
@@ -181,7 +160,8 @@ struct xb_one_drum_input_pkt_t : public frame_pkt_t {
 
     uint8_t : 8;
     uint8_t : 8;
-
+    
+    uint8_t unused[4];
 } __attribute__((packed));
 
 struct xb_packet_t {
@@ -209,7 +189,7 @@ enum adapter_state_t {
     power_off,
 };
 
-enum output_t {
+enum output_e {
     FIRST_OUT,
     OUT_KICK = FIRST_OUT,
     OUT_PAD_RED,
@@ -236,7 +216,15 @@ struct output_state_t {
     bool         triggered;
 };
 
-enum drum_state_flags_t {
+enum state_flags_t {
     no_flag      = 0,
     changed_flag = (1 << 0),
+};
+
+enum instruments_e {
+    FIRST_INSTRUMENT,
+    GUITAR_ONE = FIRST_INSTRUMENT,
+    GUITAR_TWO,
+    DRUMS,
+    N_INSTRUMENTS,
 };

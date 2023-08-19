@@ -38,7 +38,7 @@ static xb_packet_t     in_packet     = {.header = {true, 0}};
 static adapter_state_t adapter_state = none;
 
 static uint8_t                 drum_state_flag = no_flag;
-static xb_one_drum_input_pkt_t drum_state      = xb_one_drum_input_pkt_t();
+static xb_one_drum_input_pkt_t drum_state      = xb_one_drum_input_pkt_t(DRUMS);
 
 static output_state_t midi_output_states[NUM_OUT];
 
@@ -47,9 +47,19 @@ static USBHub UsbHub(&Usb);
 
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
-static ARDWIINO  player1_guitar(&Usb);
-static XBOXONE   xboxController(&Usb, xbPacketReceivedCB);
-static USBH_MIDI UsbMidi(&Usb);
+static uint8_t connected_instruments[N_INSTRUMENTS];
+
+static ARDWIINO player1_guitar(&Usb);
+static XBOXONE  xboxController(&Usb, xbPacketReceivedCB);
+// static USBH_MIDI UsbMidi(&Usb);
+
+const uint8_t PROGMEM instrument_notify[N_INSTRUMENTS][22] = {
+    {0x22, 0x00, 0x00, 0x12, 0x00, 0x01, 0x14, 0x30, 0x00, 0x87, 0x67,
+     0x00, 0x75, 0x00, 0x69, 0x00, 0x74, 0x00, 0x61, 0x00, 0x72, 0x00},
+    {0x22, 0x00, 0x00, 0x12, 0x01, 0x01, 0x14, 0x30, 0x00, 0x87, 0x67,
+     0x00, 0x75, 0x00, 0x69, 0x00, 0x74, 0x00, 0x61, 0x00, 0x72, 0x00},
+    {0x22, 0x00, 0x00, 0x12, 0x02, 0x01, 0x1b, 0xad, 0x00, 0x88, 0x64,
+     0x00, 0x72, 0x00, 0x75, 0x00, 0x6D, 0x00, 0x73, 0x00, 0x00, 0x00}};
 
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata) {
     if (ndata < sizeof(frame_pkt_t))
@@ -73,6 +83,11 @@ void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata) {
                     fillPacket(data, ndata, packet_circ_buf::get_write());
                     return;
                 case CMD_INPUT:
+                    if (!connected_instruments[DRUMS]) {
+                        fill_from_pgm(packet_circ_buf::get_write(), instrument_notify[DRUMS],
+                                      sizeof(instrument_notify[DRUMS]));
+                        connected_instruments[DRUMS] = 1;
+                    }
                     fillInputPacketFromControllerData(data, ndata, packet_circ_buf::get_write());
                     break;
                 default:
@@ -97,31 +112,20 @@ static void noteOn(uint8_t note, uint8_t velocity) {
     if (velocity <= VELOCITY_THRESH)
         return;
 
-    output_t out = outputForNote(note);
+    output_e out = outputForNote(note);
     if (out == NO_OUT)
         return;
 
     if (midi_output_states[out].triggered)
         return;
 
-    updateDrumStateWithDrumInput(static_cast<output_t>(out), 1, &drum_state);
+    updateDrumStateWithDrumInput(static_cast<output_e>(out), 1, &drum_state);
     drum_state_flag |= changed_flag;
 
     midi_output_states[out].triggered   = true;
     midi_output_states[out].triggeredAt = millis();
     return;
 }
-const uint8_t PROGMEM guitar_1_notify[] = {0x22, 0x00, 0x00, 0x12, 0x00, 0x01, 0x14, 0x30,
-                                           0x00, 0x87, 0x67, 0x00, 0x75, 0x00, 0x69, 0x00,
-                                           0x74, 0x00, 0x61, 0x00, 0x72, 0x00};
-
-const uint8_t PROGMEM guitar_2_notify[] = {0x22, 0x00, 0x00, 0x12, 0x01, 0x01, 0x14, 0x30,
-                                           0x00, 0x87, 0x67, 0x00, 0x75, 0x00, 0x69, 0x00,
-                                           0x74, 0x00, 0x61, 0x00, 0x72, 0x00};
-
-const uint8_t PROGMEM drums_notify[] = {0x22, 0x00, 0x00, 0x12, 0x02, 0x01, 0x1b, 0xad,
-                                        0x00, 0x88, 0x64, 0x00, 0x72, 0x00, 0x75, 0x00,
-                                        0x6D, 0x00, 0x73, 0x00, 0x00, 0x00};
 
 static void HandlePacketAuth(xb_packet_t &packet) {
     if (packet.buf.frame.command == CMD_AUTHENTICATE && packet.header.length == 6 &&
@@ -129,9 +133,6 @@ static void HandlePacketAuth(xb_packet_t &packet) {
         digitalWrite(LED_BUILTIN, HIGH);
         debug("AUTHENTICATED!\r\n");
         adapter_state = running;
-        // fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
-        // fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
-        // fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
     }
 
     // make sure that we're finished sending the controller the incoming command before moving on,
@@ -194,27 +195,17 @@ static void HandlePacketRunning(xb_packet_t &packet) {
             }
             break;
         case 0x24:
-            fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
-            fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify, sizeof(guitar_2_notify));
-            fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
+            for (int i = FIRST_INSTRUMENT; i < N_INSTRUMENTS; i++) {
+                if (connected_instruments[i])
+                    fill_from_pgm(packet_circ_buf::get_write(), instrument_notify[i],
+                                  sizeof(instrument_notify[i]));
+            }
             break;
         case 0x21:
-            switch (packet.buf.buffer[4]) {
-                case 0:
-                    fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify,
-                                  sizeof(guitar_1_notify));
-                    break;
-                case 1:
-                    fill_from_pgm(packet_circ_buf::get_write(), guitar_2_notify,
-                                  sizeof(guitar_2_notify));
-                    break;
-                case 2:
-                    fill_from_pgm(packet_circ_buf::get_write(), drums_notify, sizeof(drums_notify));
-                    break;
-                default:
-                    break;
+            if (packet.buf.buffer[4] < N_INSTRUMENTS) {
+                fill_from_pgm(packet_circ_buf::get_write(), instrument_notify[packet.buf.buffer[4]],
+                              sizeof(instrument_notify[packet.buf.buffer[4]]));
             }
-
             break;
         default:
             break;
@@ -304,14 +295,16 @@ static void MIDI_Task() {
         }
     }
 #endif
-    // if (UsbMidi.UsbMidiConnected) {
-    //     uint8_t outBuf[3], size;
-    //     if ((size = UsbMidi.RecvData(outBuf)) > 0)
-    //         // filter top four bits for "noteon" without channel data
-    //         if ((outBuf[0] >> 4) == 0x9) {
-    //             noteOn(outBuf[1], outBuf[2]);
-    //         }
-    // }
+#if 0
+    if (UsbMidi.UsbMidiConnected) {
+        uint8_t outBuf[3], size;
+        if ((size = UsbMidi.RecvData(outBuf)) > 0)
+            // filter top four bits for "noteon" without channel data
+            if ((outBuf[0] >> 4) == 0x9) {
+                noteOn(outBuf[1], outBuf[2]);
+            }
+    }
+#endif
 }
 
 static void DRUM_STATE_Task() {
@@ -326,7 +319,7 @@ static void DRUM_STATE_Task() {
 
         auto time_since_trigger = current_time - midi_output_states[out].triggeredAt;
         if (time_since_trigger > TRIGGER_HOLD_MS) {
-            updateDrumStateWithDrumInput(static_cast<output_t>(out), 0, &drum_state);
+            updateDrumStateWithDrumInput(static_cast<output_e>(out), 0, &drum_state);
             midi_output_states[out].triggered = false;
             drum_state_flag |= changed_flag;
         }
@@ -336,7 +329,7 @@ static void DRUM_STATE_Task() {
         drum_state.sequence = getSequence();
         fillPacket(reinterpret_cast<uint8_t *>(&drum_state), sizeof(drum_state),
                    packet_circ_buf::get_write(), current_time);
-        drum_state_flag = no_flag;
+        drum_state_flag &= ~changed_flag;
     }
 }
 
@@ -353,25 +346,28 @@ static void AnnounceTask() {
         }
     }
 }
-static bool guitarNotified = false;
 
 static void GuitarTask() {
     if (adapter_state != running)
         return;
 
-    if (!player1_guitar.Xbox360Connected)
-        return;
-
-    if (!guitarNotified) {
-        fill_from_pgm(packet_circ_buf::get_write(), guitar_1_notify, sizeof(guitar_1_notify));
-        guitarNotified = true;
+    if (!player1_guitar.Xbox360Connected) {
+        connected_instruments[GUITAR_ONE] = 0;
         return;
     }
 
-    auto intput_pkt = player1_guitar.getInputPacket();
-    if (intput_pkt->command == 0x14)
-        fillInputPacketFromGuitarData(intput_pkt, packet_circ_buf::get_write(), 0);
+    if (!connected_instruments[GUITAR_ONE]) {
+        fill_from_pgm(packet_circ_buf::get_write(), instrument_notify[GUITAR_ONE],
+                      sizeof(instrument_notify[GUITAR_ONE]));
+        connected_instruments[GUITAR_ONE] = 1;
+        return;
+    }
 
+    auto guitar_state = player1_guitar.getGuitarState();
+    if (guitar_state) {
+        debug("Filled New Packet\r\n");
+        fillInputPacketFromGuitarData(guitar_state, packet_circ_buf::get_write(), 0);
+    }
     return;
 }
 
@@ -405,6 +401,16 @@ static void SetupHardware(void) {
     digitalWrite(LED_BUILTIN, LOW);
     randomSeed(analogRead(0));
     adapter_state = init_state;
+    for (int i = FIRST_INSTRUMENT; i < N_INSTRUMENTS; i++) {
+        connected_instruments[i] = 0;
+    }
+
+    drum_state.command  = CMD_INPUT;
+    drum_state.deviceId = TYPE_COMMAND;
+    drum_state.type     = TYPE_COMMAND;
+    drum_state.sequence = getSequence();
+    drum_state.length   = sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t);
+    drum_state.playerId = DRUMS;
 }
 
 int main(void) {

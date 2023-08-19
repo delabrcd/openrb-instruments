@@ -25,11 +25,11 @@ INCLUDE_DIRS := -I./ \
 				-Imidi \
 				-Iusbhost 
 
-C_SRCS 		:= 	lufa_callbacks.c \
-				adapter_descriptors.c \
+C_SRCS 		:= 	adapter_descriptors.c \
 				$(wildcard arduino/*.c)	
 
-CPP_SRCS 	:= 	adapter_common.cpp \
+CPP_SRCS 	:= 	lufa_callbacks.cpp \
+				adapter_common.cpp \
 				debug_helpers.cpp \
 				packet_circ_buf.cpp \
 				packet_helpers.cpp \

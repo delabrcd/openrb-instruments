@@ -222,8 +222,9 @@ uint8_t ARDWIINO::Poll() {
     if (!bPollEnable)
         return 0;
     uint16_t BUFFER_SIZE = EP_MAXPKTSIZE;
-    pUsb->inTransfer(bAddress, epInfo[XBOX_INPUT_PIPE].epAddr, &BUFFER_SIZE,
-                     read_union.readBuf);  // input on endpoint 1
+    if (pUsb->inTransfer(bAddress, epInfo[XBOX_INPUT_PIPE].epAddr, &BUFFER_SIZE, readBuf))
+        return 0;
+    updateGuitarState();
 #ifdef PRINTREPORT
     readReport();
     printReport();  // Uncomment "#define PRINTREPORT" to print the report send by the Xbox 360
@@ -231,6 +232,8 @@ uint8_t ARDWIINO::Poll() {
 #endif
     return 0;
 }
+
+#ifdef PRINTREPORT
 static bool isEmpty(uint8_t *buf, size_t nbuf) {
     for (size_t i = 0; i < nbuf; i++) {
         if (buf[i])
@@ -238,63 +241,64 @@ static bool isEmpty(uint8_t *buf, size_t nbuf) {
     }
     return true;
 }
+#endif
 
 void ARDWIINO::readReport() {
-    if (isEmpty(read_union.readBuf, XBOX_REPORT_BUFFER_SIZE))
+#ifdef PRINTREPORT
+    if (isEmpty(readBuf, XBOX_REPORT_BUFFER_SIZE))
         return;
 
     bool newline = false;
-    if (read_union.pkt.blueButton) {
+    if (pkt.blueButton) {
         Notify(PSTR("BLUE "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.greenButton) {
+    if (pkt.greenButton) {
         Notify(PSTR("GREEN "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.orangeButton) {
+    if (pkt.orangeButton) {
         Notify(PSTR("ORANGE "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.yellowButton) {
+    if (pkt.yellowButton) {
         Notify(PSTR("YELLOW "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.redButton) {
+    if (pkt.redButton) {
         Notify(PSTR("RED "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.strumDown) {
+    if (pkt.strumDown) {
         Notify(PSTR("STRUM DOWN "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.strumUp) {
+    if (pkt.strumUp) {
         Notify(PSTR("STRUM UP "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.startButton) {
+    if (pkt.startButton) {
         Notify(PSTR("START "), 0x80);
         newline = true;
     }
-    if (read_union.pkt.selectButton) {
-        Notify(PSTR("SELECT "), 0x80);
+    if (pkt.tilt >= (UINT16_MAX / 2)) {
+        Notify(PSTR("STAR POWER "), 0x80);
         newline = true;
     }
     if (newline) {
         Notify(PSTR("\r\n "), 0x80);
     }
+#endif
     return;
 }
 
 void ARDWIINO::printReport() {  // Uncomment "#define PRINTREPORT" to print the report send by the
-                                // Xbox 360 Controller
+// Xbox 360 Controller
 #ifdef PRINTREPORT
-    if (read_union.readBuf == NULL)
-        return;
-    if (isEmpty(read_union.readBuf, XBOX_REPORT_BUFFER_SIZE))
+    if (readBuf == NULL)
         return;
     for (uint8_t i = 0; i < XBOX_REPORT_BUFFER_SIZE; i++) {
-        D_PrintHex<uint8_t>(read_union.readBuf[i], 0x80);
+        D_PrintHex<uint8_t>(readBuf[i], 0x80);
         Notify(PSTR(" "), 0x80);
     }
     Notify(PSTR("\r\n"), 0x80);
@@ -336,4 +340,15 @@ void ARDWIINO::setLedMode(LEDModeEnum ledMode) {  // This function is used to do
 
 void ARDWIINO::onInit() {
     setLedOn(static_cast<LEDEnum>(LED1));
+}
+
+void ARDWIINO::updateGuitarState() {
+    if (pkt.command != 0x14)
+        return;
+
+    unsigned long current_time = millis();
+    if ((current_time - last_update_time) > 10) {
+        guitar_state_flags |= changed_flag;
+        last_update_time = current_time;
+    }
 }
