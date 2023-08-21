@@ -67,13 +67,13 @@ USB can be a nightmare and is not recommended for use here. USB devices can be f
 
 Also, due to the nature of this design you'll be constantly fighting ground loops, so if you plan to listen to anything from your drum brain, do yourself a favor and get a USB isolator.
 
-Finally, the Serial MIDI shield is pretty much as cheap or cheaper than a USB Hub, making it ever moreso the better option.  
+Finally, the Serial MIDI shield is pretty much as cheap or cheaper than a USB Hub, making it the overall better option.  
 
 The thing that USB MIDI has going for it is the goal of having eventual support for legacy instruments over USB.  This will have to be how they're connected so if you plan to use them with this adapter once support is added, and are trying to save as much money as possible, go ahead with the USB Midi option. 
 
 ## Flashing the Arduino
 ### AVR-programmer
-If you want the most straightforward experience, go ahead and download the prebuilt executable for [avr-programmer](https://github.com/delabrcd/avr-programmer/releases).  This is a quick UI I built in python to directly facilitate flashing for this project, for windows it bundles its own copy of avrdude to handle the flashing, but it is cross platform with the caveat that you need to have avrdude installed and in your path for it to work.  
+If you want the most straightforward experience, go ahead and download the prebuilt executable for [avr-programmer](https://github.com/delabrcd/avr-programmer/releases).  This is a quick UI I built in Python to directly facilitate flashing for this project, for windows it bundles its own copy of avrdude to handle the flashing, but it is cross platform with the caveat that you need to have avrdude installed and in your path for it to work.  
 
 Steps: 
 1. Download the latest release of [avr-programmer](https://github.com/delabrcd/avr-programmer/releases)
@@ -83,15 +83,16 @@ Steps:
 5. Select "Type" -> atmega32u4 (this is currently the *only* type)
 6. Leave "Port" empty (this will auto-detect when you plug your arduino in)
 7. Select the firmware file you downloaded earlier
-8. Enable "Auto Flash". Here's an example for final settings: 
+8. Plug your Arduino in and wait at least 10s. 
+9. Only after the Arduino is plugged in, enable "Auto Flash". Here's an example for final settings: 
 
     ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/avr-programmer-general-settings.png?raw=true)
 
-9.  Plug your Arduino in and wait ~10s. The Leonardo may require you to press the reset button before it flashes, if nothing happens within 10s of plugging in, try pressing the physical reset button on the arduino. A successful flash will look something like this: 
+10. Press the reset button on the Arduino, host shield, or midi shield (they're all connected to the same pins so they will all do the same thing). avr-programmer will autodetect that the Arduino is in programming mode and start to program it, indicated by launching a popup window. If you are having trouble programming feel free to open an issue on GitHub or join the Discord server and ask there. A successful program will appear as follows: 
     
     ![alt text](https://github.com/delabrcd/rockband-drums-usb/blob/master/docs/avr-programmer-successful-flash.png?raw=true)
 
-10. Close avr-programmer and unplug your arduino, you're ready to go! Any firmware updates in the future will be done with this method
+11. Close avr-programmer and unplug your Arduino, you're ready to go! Any firmware updates in the future will be done with this method
 
 ### Manually Flashing With avrdude 
 If you're comfortable using a command line, familiar with avrdude, and don't want to run some random executable on the internet you can just interface with avrdude yourself to flash. The commands are: 
@@ -104,7 +105,7 @@ avrdude -patmega32u4 -cavr109 -P<device> -b115200 -D-Uflash:w:<path-to-firmware>
 The project uses the LUFA build system which utilizes GNU Make and requires a unix-style shell (bash or zsh are officially supported).  Install `avr-gcc` and `avr-libc`, then, `make` to build locally.  
 
 # Usage 
-When powered, the XBOX controller guide button will light up, then the builtin orange LED on the Leonardo will light up once the authentication is finished. This indicates everything is ready to go. You can then use the controller to navigate menus or turn on drum navigation and unplug the controller altogether. 
+When powered, the XBOX controller guide button will light up, then the built-in orange LED on the Leonardo will light up once the authentication is finished. This indicates everything is ready to go. You can then use the controller to navigate menus or turn on drum navigation and unplug the controller altogether. 
 
 Any time it is reconnected / powered, the XBOX controller will need to be plugged in so that it can handle authentication.
 
