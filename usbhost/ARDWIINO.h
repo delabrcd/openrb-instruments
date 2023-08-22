@@ -34,28 +34,15 @@
 #define SANJAY_VID 0x1209
 #define SANJAY_GUITAR_PID 0x2882
 
+#define MICROSOFT_VID 0x045E
+#define WIRELESS_GUITAR_PID 0x0719
+
 #define XBOX_REPORT_BUFFER_SIZE 14  // Size of the input report buffer
 #define XBOX_MAX_ENDPOINTS 3
 
 /** This class implements support for a Xbox wired controller via USB. */
 class ARDWIINO : public USBDeviceConfig {
 public:
-    struct xb_three_gh_input_pkt_t {
-        uint8_t unused1;
-        uint8_t command;
-        uint8_t dpadState : 4;
-        uint8_t startButton : 1;
-        uint8_t selectButton : 1;
-        uint8_t : 2;
-        uint8_t orangeButton : 1;
-        uint8_t : 3;
-        uint8_t coloredButtonState : 4;
-        uint8_t unused2[6];
-
-        uint16_t whammy;
-        uint16_t tilt;
-    } __attribute__((packed));
-
     static_assert(XBOX_REPORT_BUFFER_SIZE == sizeof(xb_three_gh_input_pkt_t),
                   "Incorrect XBOX report size");
 
@@ -108,7 +95,7 @@ public:
      * @return     Returns true if the device's VID and PID matches this driver.
      */
     virtual bool VIDPIDOK(uint16_t vid, uint16_t pid) {
-        return ((vid == SANJAY_VID) && (pid == SANJAY_GUITAR_PID));
+        return ((vid == SANJAY_VID)) && ((pid == SANJAY_GUITAR_PID));
     };
     /**@}*/
 
@@ -192,8 +179,8 @@ private:
 
     uint8_t writeBuf[8];  // General purpose buffer for output data
 
-    void readReport();    // read incoming data
-    void printReport();   // print incoming date - Uncomment for debugging
+    void readReport();   // read incoming data
+    void printReport();  // print incoming date - Uncomment for debugging
 
     /* Private commands */
     void XboxCommand(uint8_t *data, uint16_t nbytes);

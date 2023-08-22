@@ -28,14 +28,14 @@ INCLUDE_DIRS := -I./ \
 C_SRCS 		:= 	adapter_descriptors.c \
 				$(wildcard arduino/*.c)	
 
-CPP_SRCS 	:= 	lufa_callbacks.cpp \
+CPP_SRCS 	:= 	serial_midi.cpp \
+				lufa_callbacks.cpp \
 				adapter_common.cpp \
 				debug_helpers.cpp \
 				packet_circ_buf.cpp \
 				packet_helpers.cpp \
 				pdp_drum_identifiers.cpp \
 				wireless_legacy_identifiers.cpp \
-				$(wildcard midi/*.cpp)	\
 				$(wildcard usbhost/*.cpp) \
 				$(wildcard arduino/*.cpp)	
 

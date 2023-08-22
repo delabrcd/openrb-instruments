@@ -20,12 +20,11 @@
 #include "packet_helpers.h"
 #include "packet_circ_buf.h"
 #include "Config/adapter_identifiers.h"
+#include "XBOXRECV.h"
+#include "serial_midi.h"
 
 #ifdef SERIAL_DEBUG
 #include "debug_helpers.h"
-#else
-#include "MIDI.h"
-MIDI_CREATE_DEFAULT_INSTANCE()
 #endif
 
 #ifdef SERIAL_DEBUG
@@ -49,9 +48,10 @@ void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
 static uint8_t connected_instruments[N_INSTRUMENTS];
 
-static ARDWIINO player1_guitar(&Usb);
-static XBOXONE  xboxController(&Usb, xbPacketReceivedCB);
-// static USBH_MIDI UsbMidi(&Usb);
+static ARDWIINO  player1_guitar(&Usb);
+static XBOXRECV  xboxReceiver(&Usb);
+static XBOXONE   xbox_controller(&Usb, xbPacketReceivedCB);
+static USBH_MIDI usb_midi(&Usb);
 
 const uint8_t PROGMEM instrument_notify[N_INSTRUMENTS][22] = {
     {0x22, 0x00, 0x00, 0x12, 0x00, 0x01, 0x14, 0x30, 0x00, 0x87, 0x67,
@@ -137,7 +137,7 @@ static void HandlePacketAuth(xb_packet_t &packet) {
 
     // make sure that we're finished sending the controller the incoming command before moving on,
     // order is important here
-    while (xboxController.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
+    while (xbox_controller.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
         Usb.Task();
     }
     return;
@@ -190,7 +190,7 @@ static void HandlePacketRunning(xb_packet_t &packet) {
         case CMD_ACKNOWLEDGE:
             // pass ACK's to controller - this is pretty much only for the guide button to work
             // correctly
-            while (xboxController.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
+            while (xbox_controller.XboxCommand(packet.buf.buffer, packet.header.length) != 0) {
                 Usb.Task();
             }
             break;
@@ -286,25 +286,25 @@ static void HID_Task(void) {
 
 static void MIDI_Task() {
 #ifndef SERIAL_DEBUG
-    while (MIDI.read()) {
-        auto location_byte = MIDI.getType();
-        auto note          = MIDI.getData1();
-        auto velocity      = MIDI.getData2();
-        if (location_byte == midi::MidiType::NoteOn) {
-            noteOn(note, velocity);
+    while (Serial1.available()) {
+        uint8_t serialOutBuf[3];
+        if (readMIDI(&Serial1, serialOutBuf) == 3) {
+            if ((serialOutBuf[0] >> 4) == 0x9) {
+                noteOn(serialOutBuf[1], serialOutBuf[2]);
+            }
         }
     }
 #endif
-#if 0
-    if (UsbMidi.UsbMidiConnected) {
-        uint8_t outBuf[3], size;
-        if ((size = UsbMidi.RecvData(outBuf)) > 0)
+    if (usb_midi.UsbMidiConnected) {
+        // todo cdd - fix this double buffering and memory unsafety
+        uint8_t usbOutBuf[3], size;
+        if ((size = usb_midi.RecvData(usbOutBuf)) > 0) {
             // filter top four bits for "noteon" without channel data
-            if ((outBuf[0] >> 4) == 0x9) {
-                noteOn(outBuf[1], outBuf[2]);
+            if ((usbOutBuf[0] >> 4) == 0x9) {
+                noteOn(usbOutBuf[1], usbOutBuf[2]);
             }
+        }
     }
-#endif
 }
 
 static void DRUM_STATE_Task() {
@@ -339,7 +339,7 @@ static void AnnounceTask() {
 
     static unsigned long last_announce_time = 0;
     if ((millis() - last_announce_time) > ANNOUNCE_INTERVAL_MS) {
-        if (xboxController.XboxOneConnected) {
+        if (xbox_controller.XboxOneConnected) {
             debug("ANNOUNCING\r\n");
             identifiers::get_announce(packet_circ_buf::get_write());
             last_announce_time = millis();
@@ -351,7 +351,8 @@ static void GuitarTask() {
     if (adapter_state != running)
         return;
 
-    if (!player1_guitar.Xbox360Connected) {
+    if (!player1_guitar.Xbox360Connected && !xboxReceiver.XboxReceiverConnected &&
+        !xboxReceiver.Xbox360Connected[0]) {
         connected_instruments[GUITAR_ONE] = 0;
         return;
     }
@@ -364,6 +365,9 @@ static void GuitarTask() {
     }
 
     auto guitar_state = player1_guitar.getGuitarState();
+    if (!guitar_state)
+        guitar_state = xboxReceiver.getGuitarState();
+
     if (guitar_state) {
         debug("Filled New Packet\r\n");
         fillInputPacketFromGuitarData(guitar_state, packet_circ_buf::get_write(), 0);
@@ -386,6 +390,8 @@ static void SetupHardware(void) {
     init();
 #ifdef SERIAL_DEBUG
     SERIAL_DEBUG.begin(DEBUG_USART_BAUDRATE);
+#else
+    Serial1.begin(SERIAL_MIDI_BAUD_RATE);
 #endif
     debug("\r\nopenrb-instruments, built with serial debug enabled\r\nstarting...\r\n");
     if (Usb.Init() == -1) {
@@ -393,9 +399,7 @@ static void SetupHardware(void) {
         while (1)
             ;
     }
-#ifndef SERIAL_DEBUG
-    MIDI.begin(MIDI_CHANNEL_OMNI);
-#endif
+
     USB_Init();
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);

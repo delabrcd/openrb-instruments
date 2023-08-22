@@ -1,21 +1,23 @@
 #pragma once
 #include <stdint.h>
 #include "Config/adapter_config.h"
+#include "version_helper.h"
 
 enum frame_command_t {
-    CMD_ACKNOWLEDGE   = 0x01,
-    CMD_ANNOUNCE      = 0x02,
-    CMD_STATUS        = 0x03,
-    CMD_IDENTIFY      = 0x04,
-    CMD_POWER_MODE    = 0x05,
-    CMD_AUTHENTICATE  = 0x06,
-    CMD_GUIDE_BTN     = 0x07,
-    CMD_AUDIO_CONFIG  = 0x08,
-    CMD_RUMBLE        = 0x09,
-    CMD_LED_MODE      = 0x0a,
-    CMD_SERIAL_NUM    = 0x1e,
-    CMD_INPUT         = 0x20,
-    CMD_AUDIO_SAMPLES = 0x60,
+    CMD_ACKNOWLEDGE         = 0x01,
+    CMD_ANNOUNCE            = 0x02,
+    CMD_STATUS              = 0x03,
+    CMD_IDENTIFY            = 0x04,
+    CMD_POWER_MODE          = 0x05,
+    CMD_AUTHENTICATE        = 0x06,
+    CMD_GUIDE_BTN           = 0x07,
+    CMD_AUDIO_CONFIG        = 0x08,
+    CMD_RUMBLE              = 0x09,
+    CMD_LED_MODE            = 0x0a,
+    CMD_SERIAL_NUM          = 0x1e,
+    CMD_INPUT               = 0x20,
+    CMD_IDENTIFY_INSTRUMENT = 0x22,
+    CMD_AUDIO_SAMPLES       = 0x60,
 };
 
 enum frame_type_t {
@@ -160,9 +162,42 @@ struct xb_one_drum_input_pkt_t : public xb_one_wireless_legacy_adapter_pkt_t {
 
     uint8_t : 8;
     uint8_t : 8;
-    
+
     uint8_t unused[4];
 } __attribute__((packed));
+
+struct xb_three_gh_input_pkt_t {
+    uint8_t unused1;
+    uint8_t command;
+    uint8_t dpadState : 4;
+    uint8_t startButton : 1;
+    uint8_t selectButton : 1;
+    uint8_t : 2;
+    uint8_t orangeButton : 1;
+    uint8_t : 3;
+    uint8_t coloredButtonState : 4;
+    uint8_t unused2[6];
+
+    uint16_t whammy;
+    uint16_t tilt;
+} __attribute__((packed));
+
+#if 0
+struct wla_identify_pkt : public frame_pkt_t {
+    wla_identify_pkt(uint8_t playerId, const uint8_t *pgmData, uint8_t connect)
+        : frame_pkt_t{CMD_IDENTIFY_INSTRUMENT, TYPE_COMMAND, TYPE_COMMAND,
+                      sizeof(wla_identify_pkt) - sizeof(frame_pkt_t)} {
+        for (uint8_t i = 0; i < sizeof(buf); i++) {
+            buf[i] = pgm_read_byte(pgmData + i);
+        }
+        playerId = playerId;
+        connect  = connect;
+    }
+    uint8_t playerId;
+    uint8_t connect;
+    uint8_t buf[16];
+};
+#endif
 
 struct xb_packet_t {
     struct {

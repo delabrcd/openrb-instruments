@@ -107,7 +107,7 @@ void updateDrumStateWithDrumInput(const output_e &out, const uint8_t &state,
     return;
 }
 
-void fillInputPacketFromGuitarData(const ARDWIINO::xb_three_gh_input_pkt_t *guitar_in,
+void fillInputPacketFromGuitarData(const xb_three_gh_input_pkt_t *guitar_in,
                                    xb_packet_t *packet_out, uint8_t playerId) {
     memset(packet_out->buf.buffer, 0, sizeof(packet_out->buf.buffer));
 

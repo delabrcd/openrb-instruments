@@ -95,7 +95,7 @@ uint8_t ARDWIINO::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     VID = udd->idVendor;
     PID = udd->idProduct;
 
-    if (VID != SANJAY_VID)              // Check VID
+    if (VID != SANJAY_VID)  // Check VID
         goto FailUnknownDevice;
     else if (PID != SANJAY_GUITAR_PID)  // Check PID
         goto FailUnknownDevice;
@@ -144,13 +144,13 @@ uint8_t ARDWIINO::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     // TODO CDD - look into why these are different and determine if we need to be dynamically
     // finding them
     /* Initialize data structures for endpoints of device */
-    epInfo[XBOX_INPUT_PIPE].epAddr      = 0x02;            // XBOX 360 report endpoint
+    epInfo[XBOX_INPUT_PIPE].epAddr      = 0x01;  // XBOX 360 report endpoint
     epInfo[XBOX_INPUT_PIPE].epAttribs   = USB_TRANSFER_TYPE_INTERRUPT;
     epInfo[XBOX_INPUT_PIPE].bmNakPower  = USB_NAK_NOWAIT;  // Only poll once for interrupt endpoints
     epInfo[XBOX_INPUT_PIPE].maxPktSize  = EP_MAXPKTSIZE;
     epInfo[XBOX_INPUT_PIPE].bmSndToggle = 0;
     epInfo[XBOX_INPUT_PIPE].bmRcvToggle = 0;
-    epInfo[XBOX_OUTPUT_PIPE].epAddr     = 0x81;            // XBOX 360 output endpoint (??? maybe)
+    epInfo[XBOX_OUTPUT_PIPE].epAddr     = 0x02;  // XBOX 360 output endpoint (??? maybe)
     epInfo[XBOX_OUTPUT_PIPE].epAttribs  = USB_TRANSFER_TYPE_INTERRUPT;
     epInfo[XBOX_OUTPUT_PIPE].bmNakPower = USB_NAK_NOWAIT;  // Only poll once for interrupt endpoints
     epInfo[XBOX_OUTPUT_PIPE].maxPktSize = EP_MAXPKTSIZE;
@@ -175,7 +175,7 @@ uint8_t ARDWIINO::Init(uint8_t parent, uint8_t port, bool lowspeed) {
     bPollEnable      = true;
     return 0;  // Successful configuration
 
-               /* Diagnostic messages */
+    /* Diagnostic messages */
 FailGetDevDescr:
 #ifdef DEBUG_USB_HOST
     NotifyFailGetDevDescr();
