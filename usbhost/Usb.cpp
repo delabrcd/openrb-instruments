@@ -698,12 +698,7 @@ again:
  *
  */
 uint8_t USB::Configuring(uint8_t parent, uint8_t port, bool lowspeed) {
-    // uint8_t bAddress = 0;
-    char buf2[128];
 
-    // SERIAL_DEBUG.print("CONFIGURING\r\n");
-    snprintf(buf2, 128, "Configuring: parent = %i, port = %i\r\n", parent, port);
-    // SERIAL_DEBUG.print(buf2);
     uint8_t                devConfigIndex;
     uint8_t                rcode = 0;
     uint8_t                buf[sizeof(USB_DEVICE_DESCRIPTOR)];
@@ -722,10 +717,7 @@ uint8_t USB::Configuring(uint8_t parent, uint8_t port, bool lowspeed) {
     AddressPool &addrPool = GetAddressPool();
     // Get pointer to pseudo device with address 0 assigned
     p = addrPool.GetUsbDevicePtr(0);
-    snprintf(buf2, 64, "addr: %02xh", p->epinfo->epAddr);
-    // SERIAL_DEBUG.print(buf2);
     if (!p) {
-        // printf("Configuring error: USB_ERROR_ADDRESS_NOT_FOUND_IN_POOL\r\n");
         return USB_ERROR_ADDRESS_NOT_FOUND_IN_POOL;
     }
 
