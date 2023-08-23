@@ -221,6 +221,7 @@ uint8_t USBH_MIDI::Init(uint8_t parent, uint8_t port, bool lowspeed) {
             bConfNum = midiDescParser.getConfValue();
             break;
         }
+        
     }
     USBTRACE2("STEP1: MIDI,NumEP:", bNumEP);
     // Found the MIDI device?
@@ -630,6 +631,7 @@ bool MidiDescParser::ParseDescriptor(uint8_t **pp, uint16_t *pcntdn) {
                             uid->bInterfaceSubClass == USB_SUBCLASS_MIDISTREAMING) {
                             // MIDI found.
                             USBTRACE("+MIDI found\r\n\r\n");
+                            break;
                         } else {
                             USBTRACE("-MIDI not found\r\n\r\n");
                             break;
