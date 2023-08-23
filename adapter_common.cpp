@@ -41,17 +41,18 @@ static xb_one_drum_input_pkt_t drum_state      = xb_one_drum_input_pkt_t(DRUMS);
 
 static output_state_t midi_output_states[NUM_OUT];
 
-static USB    Usb;
-static USBHub UsbHub(&Usb);
+static USB       Usb;
+static USBHub    UsbHub(&Usb);
+static USBH_MIDI usb_midi(&Usb);
 
+#if 0
 void xbPacketReceivedCB(uint8_t *data, const uint8_t &ndata);
 
 static uint8_t connected_instruments[N_INSTRUMENTS];
 
-static ARDWIINO  player1_guitar(&Usb);
-static XBOXRECV  xboxReceiver(&Usb);
-static XBOXONE   xbox_controller(&Usb, xbPacketReceivedCB);
-static USBH_MIDI usb_midi(&Usb);
+// static ARDWIINO  player1_guitar(&Usb);
+// static XBOXRECV  xboxReceiver(&Usb);
+// static XBOXONE   xbox_controller(&Usb, xbPacketReceivedCB);
 
 const uint8_t PROGMEM instrument_notify[N_INSTRUMENTS][22] = {
     {0x22, 0x00, 0x00, 0x12, 0x00, 0x01, 0x14, 0x30, 0x00, 0x87, 0x67,
@@ -374,15 +375,17 @@ static void GuitarTask() {
     }
     return;
 }
-
+#endif
 static inline void DoTasks() {
     Usb.Task();
+#if 0
     HID_Task();
     USB_USBTask();
     MIDI_Task();
     DRUM_STATE_Task();
     AnnounceTask();
     GuitarTask();
+#endif
 }
 
 static void SetupHardware(void) {
@@ -393,28 +396,29 @@ static void SetupHardware(void) {
 #else
     Serial1.begin(SERIAL_MIDI_BAUD_RATE);
 #endif
-    debug("\r\nopenrb-instruments, built with serial debug enabled\r\nstarting...\r\n");
+    debug("\r\nopenrb-instruments, USB test build with serial debug enabled\r\nstarting...\r\n");
     if (Usb.Init() == -1) {
         debug("\r\nOSC did not start");
         while (1)
             ;
     }
 
-    USB_Init();
+    // USB_Init();
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
     randomSeed(analogRead(0));
     adapter_state = init_state;
+#if 0
     for (int i = FIRST_INSTRUMENT; i < N_INSTRUMENTS; i++) {
         connected_instruments[i] = 0;
     }
-
     drum_state.command  = CMD_INPUT;
     drum_state.deviceId = TYPE_COMMAND;
     drum_state.type     = TYPE_COMMAND;
     drum_state.sequence = getSequence();
     drum_state.length   = sizeof(xb_one_drum_input_pkt_t) - sizeof(frame_pkt_t);
     drum_state.playerId = DRUMS;
+#endif
 }
 
 int main(void) {
