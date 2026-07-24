@@ -40,6 +40,14 @@ CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -D__AVR_ATmega32U4__ -DA
 CPP_FLAGS 	 = -std=c++17 -DUSE_LUFA_CONFIG_HEADER $(INCLUDE_DIRS) -I./ -DARDUINO=100 -D__AVR_ATmega32U4__ -DARDUINO_AVR_LEONARDO
 LD_FLAGS     =
 
+# Optional: build against a custom MIDI mapping table in Config/ instead of
+# DefaultMidiMapping.tbl. Leave unset for the stock mapping.
+#   make MIDI_MAP=MyKitMidiMapping.tbl
+ifdef MIDI_MAP
+CC_FLAGS    += -DCUSTOM_MIDI_MAP='"$(MIDI_MAP)"'
+CPP_FLAGS   += -DCUSTOM_MIDI_MAP='"$(MIDI_MAP)"'
+endif
+
 # Default target
 all:
 
