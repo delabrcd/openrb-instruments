@@ -26,6 +26,32 @@
 // #define PRINTREPORT  // Uncomment to print the report send by the Xbox ONE Controller
 
 #include "HardwareSerial.h"
+
+#include <avr/pgmspace.h>
+
+// Lookup table generated from XBOX_SUPPORTED_DEVICE_LIST in XBOXONE.h - edit the
+// list there, not this table. Each entry packs the pair into one word (VID in the
+// high half, PID in the low half) and lives in flash, which we have far more of
+// to spare than SRAM.
+#define XBOX_DEVICE_ENTRY(vid, pid, name) (((uint32_t)(vid) << 16) | (uint32_t)(pid)),
+static const uint32_t XboxSupportedDevices[] PROGMEM = {
+    XBOX_SUPPORTED_DEVICE_LIST(XBOX_DEVICE_ENTRY)};
+#undef XBOX_DEVICE_ENTRY
+
+static const uint8_t XboxSupportedDeviceCount =
+    sizeof(XboxSupportedDevices) / sizeof(XboxSupportedDevices[0]);
+
+bool XBOXONE::VIDPIDOK(uint16_t vid, uint16_t pid) {
+    const uint32_t target = ((uint32_t)vid << 16) | (uint32_t)pid;
+
+    for (uint8_t i = 0; i < XboxSupportedDeviceCount; i++) {
+        if (pgm_read_dword(&XboxSupportedDevices[i]) == target)
+            return true;
+    }
+
+    return false;
+}
+
 XBOXONE::XBOXONE(USB *pUsb, void (*data_cb)(const uint8_t *data, const uint8_t &ndata))
     : pUsb(pUsb),  // pointer to USB class instance - mandatory
       dataCallback(data_cb),
