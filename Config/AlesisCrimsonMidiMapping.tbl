@@ -1,0 +1,48 @@
+#ifndef MIDI_MAP
+#pragma error "AlesisCrimsonMidiMapping.tbl should only be included after MIDI_MAP has been defined"
+#endif
+// MIDI_MAP(midi_note_input, rb_drums_out)
+//
+// Alesis Crimson. This kit reports:
+//   toms   50 / 47 / 43 / 41 (high to low), rims 82 / 80 / 75 / 73
+//   hi-hat 8 for both open and closed, 23 splash, 22 pedal
+//   ride   51 bow / 59 edge / 53 bell, crashes 49 and 57
+//
+// Build with:  make MIDI_MAP=AlesisCrimsonMidiMapping.tbl
+
+// kick
+MIDI_MAP(36, OUT_KICK)
+
+// red pad - snare, centre and rim
+MIDI_MAP(38, OUT_PAD_RED)
+MIDI_MAP(40, OUT_PAD_RED)
+
+// yellow pad - tom 1
+MIDI_MAP(50, OUT_PAD_YELLOW)
+MIDI_MAP(82, OUT_PAD_YELLOW)
+
+// blue pad - tom 2
+MIDI_MAP(47, OUT_PAD_BLUE)
+MIDI_MAP(80, OUT_PAD_BLUE)
+
+// green pad - toms 3 and 4 share the lowest colour
+MIDI_MAP(43, OUT_PAD_GREEN)
+MIDI_MAP(75, OUT_PAD_GREEN)
+MIDI_MAP(41, OUT_PAD_GREEN)
+MIDI_MAP(73, OUT_PAD_GREEN)
+
+// yellow cymbal - hi-hat. This kit sends the same note for open and closed, so
+// the articulation is lost; Rock Band only wants "yellow cymbal" either way.
+// Note 22 (pedal) is deliberately left unmapped - there is no hi-hat pedal
+// output, and mapping it would fire a phantom cymbal hit on every pedal press.
+MIDI_MAP(8, OUT_CYM_YELLOW)
+MIDI_MAP(23, OUT_CYM_YELLOW)
+
+// blue cymbal - ride
+MIDI_MAP(51, OUT_CYM_BLUE)
+MIDI_MAP(59, OUT_CYM_BLUE)
+MIDI_MAP(53, OUT_CYM_BLUE)
+
+// green cymbal - both crashes, as yellow and blue are taken by hi-hat and ride
+MIDI_MAP(49, OUT_CYM_GREEN)
+MIDI_MAP(57, OUT_CYM_GREEN)

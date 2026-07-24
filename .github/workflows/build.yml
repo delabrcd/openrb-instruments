@@ -1,0 +1,74 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Enumerate the firmware variants to build: the stock mapping, plus one per
+  # Config/*MidiMapping.tbl. Adding a kit table is all it takes to get a hex.
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      variants: ${{ steps.find.outputs.variants }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: find
+        run: |
+          variants=$(
+            {
+              echo '{"name":"default","map":""}'
+              for f in Config/*.tbl; do
+                base=$(basename "$f")
+                [ "$base" = "DefaultMidiMapping.tbl" ] && continue
+                name=$(echo "$base" \
+                  | sed -e 's/MidiMapping\.tbl$//' -e 's/\([a-z0-9]\)\([A-Z]\)/\1-\2/g' \
+                  | tr '[:upper:]' '[:lower:]')
+                printf '{"name":"%s","map":"%s"}\n' "$name" "$base"
+              done
+            } | jq -sc .
+          )
+          echo "variants=$variants" >> "$GITHUB_OUTPUT"
+          echo "Building variants: $variants"
+
+  build:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJson(needs.discover.outputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AVR toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-avr avr-libc binutils-avr
+
+      - name: Build
+        env:
+          MAP: ${{ matrix.variant.map }}
+        run: |
+          if [ -n "$MAP" ]; then
+            make MIDI_MAP="$MAP"
+          else
+            make
+          fi
+
+      - name: Report size
+        run: avr-size --mcu=atmega32u4 --format=avr adapter_common.elf
+
+      - name: Name the hex
+        env:
+          VARIANT: ${{ matrix.variant.name }}
+        run: cp adapter_common.hex "openrb-drums-$VARIANT.hex"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrb-drums-${{ matrix.variant.name }}
+          path: openrb-drums-${{ matrix.variant.name }}.hex
+          if-no-files-found: error
