@@ -1,0 +1,43 @@
+name: release
+
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  # Same discover + build matrix the CI workflow uses, so a release hex is
+  # built exactly the way a CI hex is.
+  build:
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect hex files
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: openrb-drums-*
+          merge-multiple: true
+
+      - name: List what we are shipping
+        run: ls -la dist
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.hex --clobber
+          else
+            gh release create "$TAG" dist/*.hex \
+              --title "$TAG" \
+              --generate-notes
+          fi

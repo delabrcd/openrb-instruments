@@ -5,6 +5,8 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # Reused by release.yml so tagged builds come off the exact same matrix.
+  workflow_call:
 
 jobs:
   # Enumerate the firmware variants to build: the stock mapping, plus one per
