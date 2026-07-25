@@ -2,6 +2,14 @@
 
 an arduino leonardo based midi pro adapter, emulating a PDP legacy adapter and presenting itself as pro drums, very close in functionality to the [Roll Limitless](https://rolllimitless.com/) but open source. 
 
+> [!TIP]
+> **Want a cheaper build?** [**openrb-pico**](https://github.com/delabrcd/openrb-pico) is a
+> rewrite of this project targeting the RP2040. It runs on a single board — either the
+> [OpenRB board](https://github.com/delabrcd/openrb-pico-hw) or an off-the-shelf
+> [Adafruit Feather RP2040 USB Host](https://www.adafruit.com/product/5723) — instead of
+> the Arduino Leonardo *and* USB Host Shield this build needs, and ships prebuilt firmware
+> you drag and drop onto the board rather than flashing with avrdude.
+
 # Table of Contents
 - [OPENRB-INSTRUMENTS ](#openrb-instruments-)
 - [Table of Contents](#table-of-contents)
